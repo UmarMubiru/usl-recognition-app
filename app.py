@@ -198,7 +198,39 @@ st.markdown("""
         }
 
         .block-container {
-            background: transparent !important;
+            background: var(--white) !important;
+            border: 1px solid #d6dde8;
+            border-radius: 14px;
+            box-shadow: 0 8px 22px rgba(11, 31, 74, 0.08);
+            padding: 1.25rem 1.5rem 2rem 1.5rem;
+        }
+
+        [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"] {
+            backdrop-filter: none !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stMetric"] {
+            background: #f8fbff;
+            border: 1px solid #d8e3ff;
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+        }
+
+        [data-testid="stMetric"] * {
+            color: var(--navy-900) !important;
+            text-shadow: none !important;
+        }
+
+        [data-testid="stFileUploader"],
+        [data-testid="stCameraInput"],
+        [data-testid="stSlider"],
+        [data-testid="stRadio"] {
+            background: var(--white);
+            border: 1px solid #d8e3ff;
+            border-radius: 10px;
+            padding: 0.65rem;
         }
         
         /* Header styling */
@@ -301,6 +333,7 @@ st.markdown("""
             margin: 0.5em 0;
             border-left: 4px solid var(--navy-500);
             border-radius: 6px;
+            color: var(--navy-900);
         }
         
         /* Radio button styling */
