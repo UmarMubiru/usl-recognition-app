@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import joblib
-import mediapipe as mp
 import numpy as np
 import streamlit as st
 from PIL import Image
@@ -27,15 +26,6 @@ def load_artifact(path: Path) -> dict[str, Any]:
     return payload
 
 
-def _landmarks_to_array(landmarks, max_points: int) -> np.ndarray:
-    if landmarks is None:
-        return np.zeros((0, 3), dtype=np.float32)
-    coords = [[p.x, p.y, p.z] for p in landmarks.landmark[:max_points]]
-    if not coords:
-        return np.zeros((0, 3), dtype=np.float32)
-    return np.asarray(coords, dtype=np.float32)
-
-
 def _safe_stats(values: np.ndarray) -> tuple[float, float, float, float, float, float]:
     if values.size == 0:
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -53,30 +43,22 @@ def _make_338_proxy_features(image_rgb: np.ndarray) -> dict[str, float]:
     h, w = image_rgb.shape[:2]
     gray = image_rgb.mean(axis=2).astype(np.float32)
 
-    mp_holistic = mp.solutions.holistic
-    with mp_holistic.Holistic(
-        static_image_mode=True,
-        model_complexity=0,
-        smooth_landmarks=True,
-        min_detection_confidence=0.4,
-        min_tracking_confidence=0.4,
-    ) as holistic:
-        result = holistic.process(image_rgb)
-
-    pose = _landmarks_to_array(result.pose_landmarks, 33)
-    left = _landmarks_to_array(result.left_hand_landmarks, 21)
-    right = _landmarks_to_array(result.right_hand_landmarks, 21)
-
     gx = np.abs(np.diff(gray, axis=1)).mean() if w > 1 else 0.0
     gy = np.abs(np.diff(gray, axis=0)).mean() if h > 1 else 0.0
     motion_proxy = float((gx + gy) / 2.0)
 
     gmean, gstd, gp10, gp25, gp75, gp90 = _safe_stats(gray.flatten())
 
-    pose_spread = float(np.std(pose[:, :2])) if len(pose) else 0.0
-    left_spread = float(np.std(left[:, :2])) if len(left) else 0.0
-    right_spread = float(np.std(right[:, :2])) if len(right) else 0.0
-    hand_spread = float((left_spread + right_spread) / max((1 if len(left) else 0) + (1 if len(right) else 0), 1))
+    # Pure image-statistics proxies to avoid fragile runtime dependencies.
+    sobel_like = float(
+        np.mean(np.abs(np.diff(gray, axis=0))) + np.mean(np.abs(np.diff(gray, axis=1)))
+    ) if h > 1 and w > 1 else 0.0
+    center = gray[h // 4 : (3 * h) // 4, w // 4 : (3 * w) // 4] if h >= 4 and w >= 4 else gray
+    center_mean = float(center.mean()) if center.size else gmean
+    edge_strength = float(abs(center_mean - gmean))
+    pseudo_presence = 1.0 if edge_strength > 1.0 else 0.0
+    pose_spread = float(np.std(gray) / 255.0)
+    hand_spread = float(min(1.0, sobel_like / 255.0))
 
     base = {
         "fps": 1.0,
@@ -116,9 +98,9 @@ def _make_338_proxy_features(image_rgb: np.ndarray) -> dict[str, float]:
         "motion_to_duration": motion_proxy,
         "motion_to_frames": motion_proxy,
         "intensity_to_motion": float(gstd / max(motion_proxy, 1e-6)),
-        "pose_presence_ratio": 1.0 if len(pose) else 0.0,
-        "left_hand_presence_ratio": 1.0 if len(left) else 0.0,
-        "right_hand_presence_ratio": 1.0 if len(right) else 0.0,
+        "pose_presence_ratio": pseudo_presence,
+        "left_hand_presence_ratio": pseudo_presence,
+        "right_hand_presence_ratio": pseudo_presence,
         "pose_spread_mean": pose_spread,
         "pose_spread_std": 0.0,
         "hand_spread_mean": hand_spread,
