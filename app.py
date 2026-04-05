@@ -178,15 +178,27 @@ st.markdown("""
             --navy-700: #123b84;
             --navy-500: #1f57b8;
             --white: #ffffff;
-            --sky-050: #f4f8ff;
-            --sky-100: #e9f0ff;
+            --sky-050: #eef1f5;
+            --sky-100: #e2e6eb;
             --border: #d8e3ff;
         }
 
         /* Main background and fonts */
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"],
+        [data-testid="stSidebar"] {
+            background: var(--sky-050) !important;
+        }
+
+        [data-testid="stAppViewContainer"] > .main,
         .main {
-            background: radial-gradient(circle at 10% 5%, #ffffff 0%, var(--sky-050) 45%, var(--sky-100) 100%);
+            background: linear-gradient(180deg, var(--sky-050) 0%, var(--sky-100) 100%) !important;
             color: var(--navy-900);
+        }
+
+        .block-container {
+            background: transparent !important;
         }
         
         /* Header styling */
