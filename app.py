@@ -232,6 +232,55 @@ st.markdown("""
             border-radius: 10px;
             padding: 0.65rem;
         }
+
+        /* Uniform anti-fade styling across all visible content blocks */
+        [data-testid="stElementContainer"],
+        [data-testid="stMarkdownContainer"],
+        [data-testid="stText"],
+        [data-testid="stCaptionContainer"] {
+            opacity: 1 !important;
+            filter: none !important;
+            color: var(--navy-900) !important;
+            text-shadow: none !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"],
+        [data-testid="stCameraInput"] > div,
+        [data-testid="stSlider"] > div,
+        [data-testid="stRadio"] > div {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 10px !important;
+            opacity: 1 !important;
+        }
+
+        div[role="radiogroup"] {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 10px !important;
+            padding: 0.45rem 0.5rem !important;
+            opacity: 1 !important;
+        }
+
+        div[role="radiogroup"] label,
+        div[role="radiogroup"] p,
+        div[role="radiogroup"] span {
+            color: var(--navy-900) !important;
+            opacity: 1 !important;
+        }
+
+        [data-baseweb="radio"] {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 8px !important;
+            padding: 0.35rem 0.5rem !important;
+            margin-right: 0.4rem !important;
+        }
+
+        [data-baseweb="radio"]:hover {
+            border-color: var(--navy-500) !important;
+            box-shadow: 0 0 0 1px rgba(31, 87, 184, 0.16) inset !important;
+        }
         
         /* Header styling */
         .header-title {
