@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -167,33 +168,64 @@ def _read_uploaded_image(uploaded_file) -> np.ndarray:
     return np.asarray(image, dtype=np.uint8)
 
 
-def _extract_key_frames(video_bytes: bytes, max_frames: int = 3) -> list[np.ndarray]:
-    """Extract key frames from video (first, middle, last) without cv2 or mediapipe."""
+def _extract_key_frames(video_bytes: bytes, video_name: str | None = None, max_frames: int = 3) -> list[np.ndarray]:
+    """Extract key frames from video using imageio-ffmpeg, without cv2 or mediapipe."""
     try:
-        import av
-    except ImportError:
+        import imageio.v2 as imageio
+    except ImportError as exc:
+        st.error(f"Video support is unavailable: {exc}")
         return []
-    
+
+    temp_path: str | None = None
+    reader = None
     try:
-        container = av.open(av.BytesIOContext(video_bytes), format="video")
-        stream = container.streams.video[0]
-        
-        frame_list = []
-        for frame in container.decode(stream):
-            frame_list.append(frame.to_ndarray(format="rgb24", width=None, height=None).astype(np.uint8))
-        
-        if not frame_list:
-            return []
-        
-        # Return key frames: first, middle, last
-        indices = [0, len(frame_list) // 2, len(frame_list) - 1]
-        indices = sorted(set(indices))  # remove duplicates if video is short
-        
-        return [frame_list[i] for i in indices if i < len(frame_list)]
-    
+        suffix = Path(video_name or "video.mp4").suffix or ".mp4"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(video_bytes)
+            temp_path = tmp.name
+
+        reader = imageio.get_reader(temp_path)
+
+        try:
+            frame_count = int(reader.count_frames())
+        except Exception:
+            frame_count = -1
+
+        frames: list[np.ndarray] = []
+        if frame_count > 0:
+            indices = sorted({0, frame_count // 2, frame_count - 1})
+            for idx in indices:
+                try:
+                    frames.append(np.asarray(reader.get_data(idx), dtype=np.uint8))
+                except Exception:
+                    continue
+        else:
+            buffered_frames: list[np.ndarray] = []
+            for frame in reader:
+                buffered_frames.append(np.asarray(frame, dtype=np.uint8))
+                if len(buffered_frames) >= 500:
+                    break
+
+            if buffered_frames:
+                indices = sorted({0, len(buffered_frames) // 2, len(buffered_frames) - 1})
+                frames = [buffered_frames[idx] for idx in indices if idx < len(buffered_frames)]
+
+        return frames[:max_frames]
+
     except Exception as exc:
         st.error(f"Failed to decode video: {exc}")
         return []
+    finally:
+        if reader is not None:
+            try:
+                reader.close()
+            except Exception:
+                pass
+        if temp_path is not None:
+            try:
+                Path(temp_path).unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 def _predict_on_frames(
@@ -625,7 +657,7 @@ if "Video File" in input_mode:
     if uploaded_video is not None:
         with st.spinner("Extracting key frames from video..."):
             video_bytes = uploaded_video.read()
-            frames = _extract_key_frames(video_bytes, max_frames=3)
+            frames = _extract_key_frames(video_bytes, uploaded_video.name, max_frames=3)
         
         if frames:
             st.info(f"✓ Extracted {len(frames)} key frames from video (first, middle, last)")
@@ -671,7 +703,7 @@ with st.container():
         <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
         <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
         <p><strong>Test Accuracy:</strong> 87.5%</p>
-        <p><strong>Note:</strong> Deployed cloud mode currently uses image/webcam proxy features for compatibility.</p>
+        <p><strong>Note:</strong> Deployed cloud mode uses image, webcam, and video proxy features for compatibility.</p>
         <p style="font-size: 0.9em; color: #888;">
             <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>
         </p>
