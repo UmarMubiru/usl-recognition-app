@@ -254,6 +254,27 @@ st.markdown("""
             opacity: 1 !important;
         }
 
+        [data-testid="stFileUploaderDropzone"] * {
+            opacity: 1 !important;
+            color: var(--navy-900) !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] button,
+        [data-testid="stFileUploader"] button {
+            background: #ffffff !important;
+            color: var(--navy-900) !important;
+            border: 1px solid #b7c9ef !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] button:hover,
+        [data-testid="stFileUploader"] button:hover {
+            border-color: var(--navy-500) !important;
+            background: #f3f7ff !important;
+        }
+
         div[role="radiogroup"] {
             background: #ffffff !important;
             border: 1px solid #d8e3ff !important;
@@ -467,7 +488,11 @@ input_mode = st.radio(
 st.markdown('</div>', unsafe_allow_html=True)
 
 if "Upload Image" in input_mode:
-    uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    uploaded_image = st.file_uploader(
+        "Upload an image",
+        type=["jpg", "jpeg", "png", "bmp", "webp", "jfif", "tif", "tiff"],
+        help="Supported: JPG, JPEG, PNG, BMP, WEBP, JFIF, TIF, TIFF",
+    )
     if uploaded_image is not None:
         try:
             image_np = _read_uploaded_image(uploaded_image)
