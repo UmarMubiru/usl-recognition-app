@@ -254,6 +254,25 @@ st.markdown("""
             color: var(--navy-700);
             margin-right: 0.45rem;
         }
+
+        .section-panel {
+            background: #ffffff;
+            border: 1px solid #d6dde8;
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            margin: 0.65rem 0 1rem 0;
+            box-shadow: 0 2px 8px rgba(11, 31, 74, 0.06);
+            color: var(--navy-900);
+            opacity: 1 !important;
+        }
+
+        .section-title {
+            margin: 0 0 0.55rem 0;
+            color: var(--navy-900);
+            font-weight: 700;
+            font-size: 1.08rem;
+            text-shadow: none;
+        }
         
         /* Card styling */
         .card {
@@ -374,7 +393,8 @@ with st.container():
 
 st.markdown("---")
 
-st.markdown("### <i class='fa-solid fa-sliders fa-icon'></i>Recognition Settings", unsafe_allow_html=True)
+st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-sliders fa-icon'></i>Recognition Settings</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -382,8 +402,11 @@ with col1:
 with col2:
     st.info("Tip: Use clear hand framing and good lighting for more stable predictions.")
 
+st.markdown('</div>', unsafe_allow_html=True)
+
 st.markdown("---")
-st.markdown("### <i class='fa-solid fa-camera fa-icon'></i>Choose Input Method", unsafe_allow_html=True)
+st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-camera fa-icon'></i>Choose Input Method</div>", unsafe_allow_html=True)
 
 input_mode = st.radio(
     "Select how you want to provide the input:",
@@ -391,6 +414,8 @@ input_mode = st.radio(
     horizontal=True,
     help="Image or webcam snapshot"
 )
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 if "Upload Image" in input_mode:
     uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -458,7 +483,7 @@ st.markdown("---")
 
 with st.container():
     st.markdown("""
-        <div style="text-align: center; margin-top: 2em; padding: 1.5em; background: #f5f7fa; border-radius: 10px;">
+        <div class="section-panel" style="text-align: center; margin-top: 2em; padding: 1.5em; background: #ffffff;">
         <h4><i class="fa-solid fa-circle-info" style="margin-right:0.45rem;color:#123b84"></i>System Information</h4>
         <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
         <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
