@@ -171,30 +171,51 @@ st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide",
 
 st.markdown("""
     <style>
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+
+        :root {
+            --navy-900: #0b1f4a;
+            --navy-700: #123b84;
+            --navy-500: #1f57b8;
+            --white: #ffffff;
+            --sky-050: #f4f8ff;
+            --sky-100: #e9f0ff;
+            --border: #d8e3ff;
+        }
+
         /* Main background and fonts */
-        .main { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .main {
+            background: radial-gradient(circle at 10% 5%, #ffffff 0%, var(--sky-050) 45%, var(--sky-100) 100%);
+            color: var(--navy-900);
+        }
         
         /* Header styling */
         .header-title {
             font-size: 3em;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--navy-900);
             text-align: center;
             margin-bottom: 0.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            letter-spacing: 0.2px;
         }
         
         .header-subtitle {
             font-size: 1.2em;
-            color: #e0e0e0;
+            color: var(--navy-700);
             text-align: center;
             margin-bottom: 2em;
+        }
+
+        .fa-icon {
+            color: var(--navy-700);
+            margin-right: 0.45rem;
         }
         
         /* Card styling */
         .card {
-            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-            border-left: 5px solid #667eea;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--navy-500);
             border-radius: 10px;
             padding: 1.5em;
             margin: 1em 0;
@@ -203,42 +224,42 @@ st.markdown("""
         
         /* Button styling */
         .stButton > button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-500) 100%);
+            color: var(--white);
             border: none;
             border-radius: 8px;
             padding: 0.75em 2em;
             font-weight: 600;
             font-size: 1.1em;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 6px rgba(18, 59, 132, 0.28);
         }
         
         .stButton > button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.6);
+            box-shadow: 0 6px 12px rgba(18, 59, 132, 0.35);
         }
         
         /* Success message styling */
         .success-box {
-            background: linear-gradient(135deg, #66d9a0 0%, #52c47c 100%);
-            color: white;
+            background: linear-gradient(135deg, #2e8b57 0%, #3ca66b 100%);
+            color: var(--white);
             padding: 1.5em;
             border-radius: 10px;
             margin: 1em 0;
-            box-shadow: 0 4px 6px rgba(102, 217, 160, 0.3);
+            box-shadow: 0 4px 6px rgba(60, 166, 107, 0.2);
             font-weight: 500;
         }
         
         /* Prediction result styling */
         .prediction-result {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+            color: var(--white);
             padding: 2em;
             border-radius: 12px;
             text-align: center;
             margin: 1.5em 0;
-            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 16px rgba(11, 31, 74, 0.2);
         }
         
         .prediction-label {
@@ -250,43 +271,44 @@ st.markdown("""
         .confidence-score {
             font-size: 1.8em;
             font-weight: 600;
-            color: #ffeb3b;
+            color: #ffd966;
         }
         
         /* Top predictions styling */
         .top-predictions {
-            background: #f5f7fa;
+            background: var(--sky-050);
+            border: 1px solid var(--border);
             border-radius: 10px;
             padding: 1.5em;
             margin: 1em 0;
         }
         
         .prediction-item {
-            background: white;
+            background: var(--white);
             padding: 1em;
             margin: 0.5em 0;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--navy-500);
             border-radius: 6px;
         }
         
         /* Radio button styling */
-        .css-1aumxpb { color: #667eea; }
+        .css-1aumxpb { color: var(--navy-700); }
         
         /* Divider */
-        hr { border: 1px solid rgba(102, 126, 234, 0.3); }
+        hr { border: 1px solid rgba(18, 59, 132, 0.2); }
     </style>
 """, unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.markdown('<div class="header-title">🖐️ Uganda Sign Language Recognition</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-title"><i class="fa-solid fa-hands fa-icon"></i>Uganda Sign Language Recognition</div>', unsafe_allow_html=True)
     st.markdown('<div class="header-subtitle">AI-Powered Disease Sign Classification System</div>', unsafe_allow_html=True)
 
 try:
     artifact = load_artifact(ARTIFACT_PATH)
 except Exception as exc:
     st.error(f"Could not load artifact: {exc}")
-    st.error("❌ Model loading failed. Ensure model.pkl exists in the app directory.")
+    st.error("Model loading failed. Ensure model.pkl exists in the app directory.")
     st.stop()
 
 model = artifact["model"]
@@ -299,28 +321,28 @@ st.markdown("---")
 with st.container():
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("🤖 Model Type", model_name.upper().replace("_", "-"))
+        st.metric("Model Type", model_name.upper().replace("_", "-"))
     with col2:
-        st.metric("📊 Features", len(feature_cols))
+        st.metric("Feature Count", len(feature_cols))
     with col3:
-        st.metric("🏥 Diseases", len(classes))
+        st.metric("Disease Classes", len(classes))
 
 st.markdown("---")
 
-st.markdown("### 📋 Recognition Settings", unsafe_allow_html=True)
+st.markdown("### <i class='fa-solid fa-sliders fa-icon'></i>Recognition Settings", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 with col1:
-    top_k = st.slider("📊 Show top predictions", min_value=1, max_value=10, value=3, help="Number of top predictions to display")
+    top_k = st.slider("Show Top Predictions", min_value=1, max_value=10, value=3, help="Number of top predictions to display")
 with col2:
-    st.info("💡 Tip: Upload a video for best accuracy (trained on temporal features)")
+    st.info("Tip: Use clear hand framing and good lighting for more stable predictions.")
 
 st.markdown("---")
-st.markdown("### 🎯 Choose Input Method", unsafe_allow_html=True)
+st.markdown("### <i class='fa-solid fa-camera fa-icon'></i>Choose Input Method", unsafe_allow_html=True)
 
 input_mode = st.radio(
     "Select how you want to provide the input:",
-    ["🖼️ Upload Image", "📸 Webcam Snapshot"],
+    ["Upload Image", "Webcam Snapshot"],
     horizontal=True,
     help="Image or webcam snapshot"
 )
@@ -344,17 +366,17 @@ if "Upload Image" in input_mode:
                     features=features,
                     top_k=top_k,
                 )
-            st.markdown('<div class="prediction-result"><div class="prediction-label">✅ {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
             
             with st.container():
-                st.markdown('<div class="top-predictions"><h4>🏆 Top Predictions</h4>', unsafe_allow_html=True)
+                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
                 for idx, (name, score) in enumerate(ranked, 1):
-                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#667eea;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
-            col1.metric("ℹ️ Missing Features", missing_count)
-            col2.metric("⚠️ Unknown Features", unknown_count)
+            col1.metric("Missing Features", missing_count)
+            col2.metric("Unknown Features", unknown_count)
 
 if "Webcam Snapshot" in input_mode:
     camera_file = st.camera_input("Take a picture")
@@ -375,42 +397,42 @@ if "Webcam Snapshot" in input_mode:
                     features=features,
                     top_k=top_k,
                 )
-            st.markdown('<div class="prediction-result"><div class="prediction-label">✅ {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
             
             with st.container():
-                st.markdown('<div class="top-predictions"><h4>🏆 Top Predictions</h4>', unsafe_allow_html=True)
+                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
                 for idx, (name, score) in enumerate(ranked, 1):
-                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#667eea;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
-            col1.metric("ℹ️ Missing Features", missing_count)
-            col2.metric("⚠️ Unknown Features", unknown_count)
+            col1.metric("Missing Features", missing_count)
+            col2.metric("Unknown Features", unknown_count)
 
 st.markdown("---")
 
 with st.container():
     st.markdown("""
         <div style="text-align: center; margin-top: 2em; padding: 1.5em; background: #f5f7fa; border-radius: 10px;">
-        <h4>📚 System Information</h4>
+        <h4><i class="fa-solid fa-circle-info" style="margin-right:0.45rem;color:#123b84"></i>System Information</h4>
         <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
         <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
         <p><strong>Test Accuracy:</strong> 87.5%</p>
-        <p><strong>💡 Note:</strong> Deployed cloud mode currently uses image/webcam proxy features for compatibility.</p>
+        <p><strong>Note:</strong> Deployed cloud mode currently uses image/webcam proxy features for compatibility.</p>
         <p style="font-size: 0.9em; color: #888;">
             <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>
         </p>
         </div>
     """, unsafe_allow_html=True)
 
-st.markdown("<hr style='border: 2px solid #667eea;'>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 2px solid #123b84;'>", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown("<p style='text-align:center'>🐍 Built with Streamlit</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-code'></i> Built with Streamlit</p>", unsafe_allow_html=True)
 with col2:
-    st.markdown("<p style='text-align:center'>🤖 Powered by scikit-learn</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-brain'></i> Powered by scikit-learn</p>", unsafe_allow_html=True)
 with col3:
-    st.markdown("<p style='text-align:center'>📍 Makerere University</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-building-columns'></i> Makerere University</p>", unsafe_allow_html=True)
 
 st.markdown("<p style='text-align:center; color: #999; font-size: 0.85em; margin-top: 1em;'>Made for Uganda Sign Language Research | 2026</p>", unsafe_allow_html=True)
