@@ -1,29 +1,19 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
-import cv2
 import joblib
 import mediapipe as mp
 import numpy as np
 import streamlit as st
+from PIL import Image
 
 APP_DIR = Path(__file__).resolve().parent
 LOCAL_ARTIFACT = APP_DIR / "model.pkl"
 FALLBACK_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
 ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else FALLBACK_ARTIFACT)))
-
-_HOG = cv2.HOGDescriptor(
-    _winSize=(64, 64),
-    _blockSize=(32, 32),
-    _blockStride=(32, 32),
-    _cellSize=(16, 16),
-    _nbins=9,
-)
-_HOG_DIM: int = int(_HOG.getDescriptorSize())
 
 
 @st.cache_resource
@@ -40,260 +30,113 @@ def load_artifact(path: Path) -> dict[str, Any]:
 def _landmarks_to_array(landmarks, max_points: int) -> np.ndarray:
     if landmarks is None:
         return np.zeros((0, 3), dtype=np.float32)
-    coords = []
-    for point in landmarks.landmark[:max_points]:
-        coords.append([point.x, point.y, point.z])
+    coords = [[p.x, p.y, p.z] for p in landmarks.landmark[:max_points]]
     if not coords:
         return np.zeros((0, 3), dtype=np.float32)
     return np.asarray(coords, dtype=np.float32)
 
 
-def _safe_stats(values: list[float]) -> tuple[float, float, float, float, float, float]:
-    if not values:
+def _safe_stats(values: np.ndarray) -> tuple[float, float, float, float, float, float]:
+    if values.size == 0:
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    arr = np.asarray(values, dtype=np.float32)
     return (
-        float(arr.mean()),
-        float(arr.std()),
-        float(np.percentile(arr, 10)),
-        float(np.percentile(arr, 25)),
-        float(np.percentile(arr, 75)),
-        float(np.percentile(arr, 90)),
+        float(values.mean()),
+        float(values.std()),
+        float(np.percentile(values, 10)),
+        float(np.percentile(values, 25)),
+        float(np.percentile(values, 75)),
+        float(np.percentile(values, 90)),
     )
 
 
-def _segment_means(values: list[float]) -> tuple[float, float, float, float]:
-    if not values:
-        return 0.0, 0.0, 0.0, 0.0
-    arr = np.asarray(values, dtype=np.float32)
-    n = len(arr)
-    seg = max(1, n // 3)
-    start = arr[:seg]
-    middle = arr[seg : 2 * seg] if n >= 2 * seg else arr[seg:]
-    end = arr[2 * seg :] if n > 2 * seg else arr[-seg:]
-    trend = float(end.mean() - start.mean())
-    return float(start.mean()), float(middle.mean() if len(middle) else 0.0), float(end.mean()), trend
-
-
-def _slope(values: list[float]) -> float:
-    if len(values) < 2:
-        return 0.0
-    y = np.asarray(values, dtype=np.float32)
-    x = np.arange(len(y), dtype=np.float32)
-    return float(np.polyfit(x, y, 1)[0])
-
-
-def _uploaded_file_to_rgb_array(uploaded_file) -> np.ndarray:
-    buf = np.frombuffer(uploaded_file.getvalue(), dtype=np.uint8)
-    bgr = cv2.imdecode(buf, cv2.IMREAD_COLOR)
-    if bgr is None:
-        raise ValueError("Unable to decode image bytes")
-    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-
-
-def _empty_state() -> dict[str, Any]:
-    return {
-        "sampled_gray_means": [],
-        "sampled_gray_stds": [],
-        "motion_diffs": [],
-        "pose_presence": 0,
-        "left_presence": 0,
-        "right_presence": 0,
-        "pose_spreads": [],
-        "hand_spreads": [],
-        "pose_motion": [],
-        "hand_motion": [],
-        "hog_descs": [],
-        "prev_gray": None,
-        "prev_pose_arr": None,
-        "prev_left_arr": None,
-        "prev_right_arr": None,
-    }
-
-
-def _update_from_frame(frame_bgr: np.ndarray, state: dict[str, Any], holistic) -> None:
-    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-    state["sampled_gray_means"].append(float(gray.mean()))
-    state["sampled_gray_stds"].append(float(gray.std()))
-    state["hog_descs"].append(_HOG.compute(cv2.resize(gray, (64, 64))).flatten())
-
-    prev_gray = state["prev_gray"]
-    if prev_gray is not None:
-        diff = cv2.absdiff(prev_gray, gray)
-        state["motion_diffs"].append(float(diff.mean()))
-    state["prev_gray"] = gray
-
-    if holistic is None:
-        return
-
-    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    result = holistic.process(rgb)
-
-    pose_arr = _landmarks_to_array(result.pose_landmarks, 33)
-    left_arr = _landmarks_to_array(result.left_hand_landmarks, 21)
-    right_arr = _landmarks_to_array(result.right_hand_landmarks, 21)
-
-    if len(pose_arr):
-        state["pose_presence"] += 1
-        state["pose_spreads"].append(float(np.std(pose_arr[:, :2])))
-        prev_pose = state["prev_pose_arr"]
-        if prev_pose is not None and len(prev_pose) == len(pose_arr):
-            motion_val = np.linalg.norm(pose_arr[:, :2] - prev_pose[:, :2], axis=1).mean()
-            state["pose_motion"].append(float(motion_val))
-        state["prev_pose_arr"] = pose_arr
-
-    if len(left_arr):
-        state["left_presence"] += 1
-        state["hand_spreads"].append(float(np.std(left_arr[:, :2])))
-        prev_left = state["prev_left_arr"]
-        if prev_left is not None and len(prev_left) == len(left_arr):
-            motion_val = np.linalg.norm(left_arr[:, :2] - prev_left[:, :2], axis=1).mean()
-            state["hand_motion"].append(float(motion_val))
-        state["prev_left_arr"] = left_arr
-
-    if len(right_arr):
-        state["right_presence"] += 1
-        state["hand_spreads"].append(float(np.std(right_arr[:, :2])))
-        prev_right = state["prev_right_arr"]
-        if prev_right is not None and len(prev_right) == len(right_arr):
-            motion_val = np.linalg.norm(right_arr[:, :2] - prev_right[:, :2], axis=1).mean()
-            state["hand_motion"].append(float(motion_val))
-        state["prev_right_arr"] = right_arr
-
-
-def _finalize_features(state: dict[str, Any], fps: float, frame_count: float, width: float, height: float) -> dict[str, float]:
-    hog_descs = state["hog_descs"]
-    if hog_descs:
-        hog_arr = np.stack(hog_descs, axis=0)
-        hog_mean = hog_arr.mean(axis=0)
-        hog_std = hog_arr.std(axis=0)
-    else:
-        hog_mean = np.zeros(_HOG_DIM, dtype=np.float32)
-        hog_std = np.zeros(_HOG_DIM, dtype=np.float32)
-
-    duration_sec = frame_count / fps if fps > 0 else 0.0
-
-    gray_mean_mean, gray_mean_std, gray_mean_p10, gray_mean_p25, gray_mean_p75, gray_mean_p90 = _safe_stats(state["sampled_gray_means"])
-    gray_std_mean, gray_std_std, gray_std_p10, gray_std_p25, gray_std_p75, gray_std_p90 = _safe_stats(state["sampled_gray_stds"])
-    motion_mean, motion_std, motion_p10, motion_p25, motion_p75, motion_p90 = _safe_stats(state["motion_diffs"])
-    pose_spread_mean, pose_spread_std, _, _, _, _ = _safe_stats(state["pose_spreads"])
-    hand_spread_mean, hand_spread_std, _, _, _, _ = _safe_stats(state["hand_spreads"])
-    pose_motion_mean, pose_motion_std, _, _, _, _ = _safe_stats(state["pose_motion"])
-    hand_motion_mean, hand_motion_std, _, _, _, _ = _safe_stats(state["hand_motion"])
-
-    gray_start, gray_middle, gray_end, gray_trend = _segment_means(state["sampled_gray_means"])
-    motion_start, motion_middle, motion_end, motion_trend = _segment_means(state["motion_diffs"])
-
-    gray_slope = _slope(state["sampled_gray_means"])
-    motion_slope = _slope(state["motion_diffs"])
-
-    sampled_frames = float(len(state["sampled_gray_means"]))
-    motion_to_duration = motion_mean / max(duration_sec, 1e-6)
-    motion_to_frames = motion_mean / max(frame_count, 1.0)
-    intensity_to_motion = gray_std_mean / max(motion_mean, 1e-6)
-
-    features = {
-        "fps": fps,
-        "frame_count": frame_count,
-        "duration_sec": duration_sec,
-        "width": width,
-        "height": height,
-        "aspect_ratio": (width / height) if height > 0 else 0.0,
-        "gray_mean_mean": gray_mean_mean,
-        "gray_mean_std": gray_mean_std,
-        "gray_mean_p10": gray_mean_p10,
-        "gray_mean_p25": gray_mean_p25,
-        "gray_mean_p75": gray_mean_p75,
-        "gray_mean_p90": gray_mean_p90,
-        "gray_std_mean": gray_std_mean,
-        "gray_std_std": gray_std_std,
-        "gray_std_p10": gray_std_p10,
-        "gray_std_p25": gray_std_p25,
-        "gray_std_p75": gray_std_p75,
-        "gray_std_p90": gray_std_p90,
-        "motion_mean": motion_mean,
-        "motion_std": motion_std,
-        "motion_p10": motion_p10,
-        "motion_p25": motion_p25,
-        "motion_p75": motion_p75,
-        "motion_p90": motion_p90,
-        "gray_start": gray_start,
-        "gray_middle": gray_middle,
-        "gray_end": gray_end,
-        "gray_trend": gray_trend,
-        "motion_start": motion_start,
-        "motion_middle": motion_middle,
-        "motion_end": motion_end,
-        "motion_trend": motion_trend,
-        "gray_slope": gray_slope,
-        "motion_slope": motion_slope,
-        "motion_to_duration": motion_to_duration,
-        "motion_to_frames": motion_to_frames,
-        "intensity_to_motion": intensity_to_motion,
-        "pose_presence_ratio": float(state["pose_presence"]) / max(sampled_frames, 1.0),
-        "left_hand_presence_ratio": float(state["left_presence"]) / max(sampled_frames, 1.0),
-        "right_hand_presence_ratio": float(state["right_presence"]) / max(sampled_frames, 1.0),
-        "pose_spread_mean": pose_spread_mean,
-        "pose_spread_std": pose_spread_std,
-        "hand_spread_mean": hand_spread_mean,
-        "hand_spread_std": hand_spread_std,
-        "pose_motion_mean": pose_motion_mean,
-        "pose_motion_std": pose_motion_std,
-        "hand_motion_mean": hand_motion_mean,
-        "hand_motion_std": hand_motion_std,
-        "sampled_frames": sampled_frames,
-        "sampled_motion_steps": float(len(state["motion_diffs"])),
-        **{f"hog_mean_{i}": float(hog_mean[i]) for i in range(_HOG_DIM)},
-        **{f"hog_std_{i}": float(hog_std[i]) for i in range(_HOG_DIM)},
-    }
-    return features
-
-
-def extract_features_from_video(video_path: Path) -> dict[str, float]:
-    cap = cv2.VideoCapture(str(video_path))
-    fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
-    frame_count = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0.0)
-    width = float(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0.0)
-    height = float(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0.0)
-
-    state = _empty_state()
-    stride = 12
-    frame_idx = 0
-
-    with mp.solutions.holistic.Holistic(
-        static_image_mode=False,
-        model_complexity=0,
-        smooth_landmarks=True,
-        min_detection_confidence=0.4,
-        min_tracking_confidence=0.4,
-    ) as holistic:
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            if frame_idx % stride == 0:
-                _update_from_frame(frame, state, holistic)
-            frame_idx += 1
-
-    cap.release()
-    return _finalize_features(state, fps=fps, frame_count=frame_count, width=width, height=height)
-
-
-def extract_features_from_image(image_rgb: np.ndarray) -> dict[str, float]:
+def _make_338_proxy_features(image_rgb: np.ndarray) -> dict[str, float]:
     h, w = image_rgb.shape[:2]
-    frame_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
-    state = _empty_state()
+    gray = image_rgb.mean(axis=2).astype(np.float32)
 
-    with mp.solutions.holistic.Holistic(
+    mp_holistic = mp.solutions.holistic
+    with mp_holistic.Holistic(
         static_image_mode=True,
         model_complexity=0,
         smooth_landmarks=True,
         min_detection_confidence=0.4,
         min_tracking_confidence=0.4,
     ) as holistic:
-        _update_from_frame(frame_bgr, state, holistic)
+        result = holistic.process(image_rgb)
 
-    return _finalize_features(state, fps=1.0, frame_count=1.0, width=float(w), height=float(h))
+    pose = _landmarks_to_array(result.pose_landmarks, 33)
+    left = _landmarks_to_array(result.left_hand_landmarks, 21)
+    right = _landmarks_to_array(result.right_hand_landmarks, 21)
+
+    gx = np.abs(np.diff(gray, axis=1)).mean() if w > 1 else 0.0
+    gy = np.abs(np.diff(gray, axis=0)).mean() if h > 1 else 0.0
+    motion_proxy = float((gx + gy) / 2.0)
+
+    gmean, gstd, gp10, gp25, gp75, gp90 = _safe_stats(gray.flatten())
+
+    pose_spread = float(np.std(pose[:, :2])) if len(pose) else 0.0
+    left_spread = float(np.std(left[:, :2])) if len(left) else 0.0
+    right_spread = float(np.std(right[:, :2])) if len(right) else 0.0
+    hand_spread = float((left_spread + right_spread) / max((1 if len(left) else 0) + (1 if len(right) else 0), 1))
+
+    base = {
+        "fps": 1.0,
+        "frame_count": 1.0,
+        "duration_sec": 1.0,
+        "width": float(w),
+        "height": float(h),
+        "aspect_ratio": float(w / h) if h > 0 else 0.0,
+        "gray_mean_mean": gmean,
+        "gray_mean_std": gstd,
+        "gray_mean_p10": gp10,
+        "gray_mean_p25": gp25,
+        "gray_mean_p75": gp75,
+        "gray_mean_p90": gp90,
+        "gray_std_mean": gstd,
+        "gray_std_std": 0.0,
+        "gray_std_p10": gstd,
+        "gray_std_p25": gstd,
+        "gray_std_p75": gstd,
+        "gray_std_p90": gstd,
+        "motion_mean": motion_proxy,
+        "motion_std": 0.0,
+        "motion_p10": motion_proxy,
+        "motion_p25": motion_proxy,
+        "motion_p75": motion_proxy,
+        "motion_p90": motion_proxy,
+        "gray_start": gmean,
+        "gray_middle": gmean,
+        "gray_end": gmean,
+        "gray_trend": 0.0,
+        "motion_start": motion_proxy,
+        "motion_middle": motion_proxy,
+        "motion_end": motion_proxy,
+        "motion_trend": 0.0,
+        "gray_slope": 0.0,
+        "motion_slope": 0.0,
+        "motion_to_duration": motion_proxy,
+        "motion_to_frames": motion_proxy,
+        "intensity_to_motion": float(gstd / max(motion_proxy, 1e-6)),
+        "pose_presence_ratio": 1.0 if len(pose) else 0.0,
+        "left_hand_presence_ratio": 1.0 if len(left) else 0.0,
+        "right_hand_presence_ratio": 1.0 if len(right) else 0.0,
+        "pose_spread_mean": pose_spread,
+        "pose_spread_std": 0.0,
+        "hand_spread_mean": hand_spread,
+        "hand_spread_std": 0.0,
+        "pose_motion_mean": 0.0,
+        "pose_motion_std": 0.0,
+        "hand_motion_mean": 0.0,
+        "hand_motion_std": 0.0,
+        "sampled_frames": 1.0,
+        "sampled_motion_steps": 0.0,
+    }
+
+    # Use global intensity histogram bins to fill hog slots deterministically.
+    hist, _ = np.histogram(gray, bins=144, range=(0, 255), density=True)
+    hist = hist.astype(np.float32)
+    base.update({f"hog_mean_{i}": float(hist[i]) for i in range(144)})
+    base.update({f"hog_std_{i}": 0.0 for i in range(144)})
+    return base
 
 
 def _softmax(values: np.ndarray) -> np.ndarray:
@@ -337,26 +180,12 @@ def predict_with_artifact(
     return classes[pred_idx], float(probs[pred_idx]), ranked, missing_count, unknown_count
 
 
-def run_prediction_from_uploaded_video(uploaded_file) -> dict[str, Any]:
-    suffix = Path(uploaded_file.name).suffix or ".mp4"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(uploaded_file.getbuffer())
-        tmp_path = Path(tmp.name)
-    try:
-        return extract_features_from_video(tmp_path)
-    finally:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except Exception:
-            pass
+def _read_uploaded_image(uploaded_file) -> np.ndarray:
+    image = Image.open(uploaded_file).convert("RGB")
+    return np.asarray(image, dtype=np.uint8)
 
 
-st.set_page_config(
-    page_title="Uganda Sign Language Recognition",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={"About": "Real-time disease sign language recognition using AI"}
-)
+st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
@@ -509,52 +338,23 @@ st.markdown("### 🎯 Choose Input Method", unsafe_allow_html=True)
 
 input_mode = st.radio(
     "Select how you want to provide the input:",
-    ["📹 Upload Video (Best Accuracy)", "🖼️ Upload Image", "📸 Webcam Snapshot"],
+    ["🖼️ Upload Image", "📸 Webcam Snapshot"],
     horizontal=True,
-    help="Video (recommended) | Image | Webcam"
+    help="Image or webcam snapshot"
 )
-
-if "Upload Video" in input_mode:
-    uploaded_video = st.file_uploader("Upload a short sign video", type=["mp4", "mov", "avi", "mkv"])
-    if uploaded_video is not None:
-        with st.container():
-            st.markdown("#### 🎬 Video Preview", unsafe_allow_html=True)
-            st.video(uploaded_video)
-        
-        if st.button("Predict", key="predict_video"):
-            with st.spinner("Extracting 338 features from video and predicting..."):
-                features = run_prediction_from_uploaded_video(uploaded_video)
-                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-                    model=model,
-                    classes=classes,
-                    feature_cols=feature_cols,
-                    features=features,
-                    top_k=top_k,
-                )
-            st.markdown('<div class="prediction-result"><div class="prediction-label">✅ {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
-            
-            with st.container():
-                st.markdown('<div class="top-predictions"><h4>🏆 Top Predictions</h4>', unsafe_allow_html=True)
-                for idx, (name, score) in enumerate(ranked, 1):
-                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#667eea;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            col1.metric("ℹ️ Missing Features", missing_count)
-            col2.metric("⚠️ Unknown Features", unknown_count)
 
 if "Upload Image" in input_mode:
     uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_image is not None:
         try:
-            image_np = _uploaded_file_to_rgb_array(uploaded_image)
+            image_np = _read_uploaded_image(uploaded_image)
         except Exception as exc:
             st.error(f"Could not decode uploaded image: {exc}")
             st.stop()
         st.image(image_np, caption="Uploaded image", use_container_width=True)
         if st.button("Predict", key="predict_image"):
-            with st.spinner("Extracting approximate 338 features from image and predicting..."):
-                features = extract_features_from_image(image_np)
+            with st.spinner("Extracting 338-compatible features from image and predicting..."):
+                features = _make_338_proxy_features(image_np)
                 label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
                     model=model,
                     classes=classes,
@@ -578,14 +378,14 @@ if "Webcam Snapshot" in input_mode:
     camera_file = st.camera_input("Take a picture")
     if camera_file is not None:
         try:
-            image_np = _uploaded_file_to_rgb_array(camera_file)
+            image_np = _read_uploaded_image(camera_file)
         except Exception as exc:
             st.error(f"Could not decode webcam snapshot: {exc}")
             st.stop()
         st.image(image_np, caption="Captured image", use_container_width=True)
         if st.button("Predict", key="predict_camera"):
-            with st.spinner("Extracting approximate 338 features from snapshot and predicting..."):
-                features = extract_features_from_image(image_np)
+            with st.spinner("Extracting 338-compatible features from snapshot and predicting..."):
+                features = _make_338_proxy_features(image_np)
                 label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
                     model=model,
                     classes=classes,
@@ -612,9 +412,9 @@ with st.container():
         <div style="text-align: center; margin-top: 2em; padding: 1.5em; background: #f5f7fa; border-radius: 10px;">
         <h4>📚 System Information</h4>
         <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
-        <p><strong>Training Data:</strong> 335 engineered video features (temporal, HOG, MediaPipe)</p>
+        <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
         <p><strong>Test Accuracy:</strong> 87.5%</p>
-        <p><strong>💡 Best Results:</strong> Upload video files for highest accuracy</p>
+        <p><strong>💡 Note:</strong> Deployed cloud mode currently uses image/webcam proxy features for compatibility.</p>
         <p style="font-size: 0.9em; color: #888;">
             <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>
         </p>
