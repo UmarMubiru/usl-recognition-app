@@ -1,7 +1,7 @@
-streamlit
-mediapipe
-opencv-python-headless
-numpy
-scikit-learn
-joblib
-pillow
+streamlit==1.43.2
+mediapipe==0.10.14
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+scikit-learn==1.8.0
+joblib==1.4.2
+pillow==10.4.0
