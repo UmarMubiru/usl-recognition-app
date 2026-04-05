@@ -10,7 +10,6 @@ import joblib
 import mediapipe as mp
 import numpy as np
 import streamlit as st
-from PIL import Image
 
 APP_DIR = Path(__file__).resolve().parent
 LOCAL_ARTIFACT = APP_DIR / "model.pkl"
@@ -82,6 +81,14 @@ def _slope(values: list[float]) -> float:
     y = np.asarray(values, dtype=np.float32)
     x = np.arange(len(y), dtype=np.float32)
     return float(np.polyfit(x, y, 1)[0])
+
+
+def _uploaded_file_to_rgb_array(uploaded_file) -> np.ndarray:
+    buf = np.frombuffer(uploaded_file.getvalue(), dtype=np.uint8)
+    bgr = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise ValueError("Unable to decode image bytes")
+    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
 
 def _empty_state() -> dict[str, Any]:
@@ -539,9 +546,12 @@ if "Upload Video" in input_mode:
 if "Upload Image" in input_mode:
     uploaded_image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if uploaded_image is not None:
-        image = Image.open(uploaded_image).convert("RGB")
-        image_np = np.array(image)
-        st.image(image, caption="Uploaded image", use_container_width=True)
+        try:
+            image_np = _uploaded_file_to_rgb_array(uploaded_image)
+        except Exception as exc:
+            st.error(f"Could not decode uploaded image: {exc}")
+            st.stop()
+        st.image(image_np, caption="Uploaded image", use_container_width=True)
         if st.button("Predict", key="predict_image"):
             with st.spinner("Extracting approximate 338 features from image and predicting..."):
                 features = extract_features_from_image(image_np)
@@ -567,9 +577,12 @@ if "Upload Image" in input_mode:
 if "Webcam Snapshot" in input_mode:
     camera_file = st.camera_input("Take a picture")
     if camera_file is not None:
-        image = Image.open(camera_file).convert("RGB")
-        image_np = np.array(image)
-        st.image(image, caption="Captured image", use_container_width=True)
+        try:
+            image_np = _uploaded_file_to_rgb_array(camera_file)
+        except Exception as exc:
+            st.error(f"Could not decode webcam snapshot: {exc}")
+            st.stop()
+        st.image(image_np, caption="Captured image", use_container_width=True)
         if st.button("Predict", key="predict_camera"):
             with st.spinner("Extracting approximate 338 features from snapshot and predicting..."):
                 features = extract_features_from_image(image_np)
