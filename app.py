@@ -167,6 +167,69 @@ def _read_uploaded_image(uploaded_file) -> np.ndarray:
     return np.asarray(image, dtype=np.uint8)
 
 
+def _extract_key_frames(video_bytes: bytes, max_frames: int = 3) -> list[np.ndarray]:
+    """Extract key frames from video (first, middle, last) without cv2 or mediapipe."""
+    try:
+        import av
+    except ImportError:
+        return []
+    
+    try:
+        container = av.open(av.BytesIOContext(video_bytes), format="video")
+        stream = container.streams.video[0]
+        
+        frame_list = []
+        for frame in container.decode(stream):
+            frame_list.append(frame.to_ndarray(format="rgb24", width=None, height=None).astype(np.uint8))
+        
+        if not frame_list:
+            return []
+        
+        # Return key frames: first, middle, last
+        indices = [0, len(frame_list) // 2, len(frame_list) - 1]
+        indices = sorted(set(indices))  # remove duplicates if video is short
+        
+        return [frame_list[i] for i in indices if i < len(frame_list)]
+    
+    except Exception as exc:
+        st.error(f"Failed to decode video: {exc}")
+        return []
+
+
+def _predict_on_frames(
+    frames: list[np.ndarray],
+    model,
+    classes: list[str],
+    feature_cols: list[str],
+    top_k: int,
+) -> tuple[str, float, list[tuple[str, float]], int, int]:
+    """Predict on multiple frames and average the results."""
+    if not frames:
+        st.error("No frames extracted from video.")
+        return None, 0.0, [], 0, 0
+    
+    all_features_list = []
+    for frame in frames:
+        features = _make_338_proxy_features(frame)
+        all_features_list.append(features)
+    
+    # Average features across frames
+    avg_features = {}
+    for key in all_features_list[0].keys():
+        avg_features[key] = float(np.mean([f[key] for f in all_features_list]))
+    
+    # Predict on averaged features
+    label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
+        model=model,
+        classes=classes,
+        feature_cols=feature_cols,
+        features=avg_features,
+        top_k=top_k,
+    )
+    
+    return label, confidence, ranked, missing_count, unknown_count
+
+
 st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -480,9 +543,9 @@ st.markdown("<div class='section-title'><i class='fa-solid fa-camera fa-icon'></
 
 input_mode = st.radio(
     "Select how you want to provide the input:",
-    ["Upload Image", "Webcam Snapshot"],
+    ["Upload Image", "Webcam Snapshot", "Video File"],
     horizontal=True,
-    help="Image or webcam snapshot"
+    help="Image, webcam snapshot, or video file"
 )
 
 st.markdown('</div>', unsafe_allow_html=True)
@@ -552,6 +615,52 @@ if "Webcam Snapshot" in input_mode:
             col1, col2 = st.columns(2)
             col1.metric("Missing Features", missing_count)
             col2.metric("Unknown Features", unknown_count)
+
+if "Video File" in input_mode:
+    uploaded_video = st.file_uploader(
+        "Upload a video",
+        type=["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv"],
+        help="Supported: MP4, AVI, MOV, MKV, WEBM, FLV, WMV",
+    )
+    if uploaded_video is not None:
+        with st.spinner("Extracting key frames from video..."):
+            video_bytes = uploaded_video.read()
+            frames = _extract_key_frames(video_bytes, max_frames=3)
+        
+        if frames:
+            st.info(f"✓ Extracted {len(frames)} key frames from video (first, middle, last)")
+            
+            # Show extracted frames in columns
+            cols = st.columns(len(frames))
+            for idx, frame in enumerate(frames):
+                with cols[idx]:
+                    st.image(frame, caption=f"Frame {idx + 1}", use_container_width=True)
+            
+            if st.button("Predict on Video", key="predict_video"):
+                with st.spinner("Extracting 338-compatible features from key frames and predicting..."):
+                    label, confidence, ranked, missing_count, unknown_count = _predict_on_frames(
+                        frames=frames,
+                        model=model,
+                        classes=classes,
+                        feature_cols=feature_cols,
+                        top_k=top_k,
+                    )
+                
+                if label is not None:
+                    st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+                    
+                    with st.container():
+                        st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
+                        for idx, (name, score) in enumerate(ranked, 1):
+                            st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    col1.metric("Missing Features", missing_count)
+                    col2.metric("Unknown Features", unknown_count)
+                    st.success("✓ Video prediction complete!")
+        else:
+            st.error("Could not extract frames from this video. Try MP4 or AVI format.")
 
 st.markdown("---")
 
