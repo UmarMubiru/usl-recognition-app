@@ -1,0 +1,103 @@
+{
+  "svm_rbf": {
+    "val_accuracy": 0.8928571428571429,
+    "val_macro_f1": 0.8889230769230769,
+    "test_accuracy": 0.875,
+    "test_macro_f1": 0.8388278388278388
+  },
+  "hist_gradient_boosting": {
+    "val_accuracy": 0.8035714285714286,
+    "val_macro_f1": 0.7445421245421245,
+    "test_accuracy": 0.8214285714285714,
+    "test_macro_f1": 0.7376330336330337
+  },
+  "svm_best_params": {
+    "memory": null,
+    "steps": [
+      [
+        "scaler",
+        "StandardScaler()"
+      ],
+      [
+        "clf",
+        "SVC(C=np.float64(100.0), gamma=np.float64(0.0001), random_state=42)"
+      ]
+    ],
+    "transform_input": null,
+    "verbose": false,
+    "scaler": "StandardScaler()",
+    "clf": "SVC(C=np.float64(100.0), gamma=np.float64(0.0001), random_state=42)",
+    "scaler__copy": true,
+    "scaler__with_mean": true,
+    "scaler__with_std": true,
+    "clf__C": 100.0,
+    "clf__break_ties": false,
+    "clf__cache_size": 200,
+    "clf__class_weight": null,
+    "clf__coef0": 0.0,
+    "clf__decision_function_shape": "ovr",
+    "clf__degree": 3,
+    "clf__gamma": 0.0001,
+    "clf__kernel": "rbf",
+    "clf__max_iter": -1,
+    "clf__probability": false,
+    "clf__random_state": 42,
+    "clf__shrinking": true,
+    "clf__tol": 0.001,
+    "clf__verbose": false
+  },
+  "hgb_best_params": {
+    "categorical_features": "from_dtype",
+    "class_weight": null,
+    "early_stopping": "auto",
+    "interaction_cst": null,
+    "l2_regularization": 0.007742636826811269,
+    "learning_rate": 0.014575933009692956,
+    "loss": "log_loss",
+    "max_bins": 255,
+    "max_depth": 12,
+    "max_features": 1.0,
+    "max_iter": 700,
+    "max_leaf_nodes": 15,
+    "min_samples_leaf": 30,
+    "monotonic_cst": null,
+    "n_iter_no_change": 10,
+    "random_state": 42,
+    "scoring": "loss",
+    "tol": 1e-07,
+    "validation_fraction": 0.1,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "classes": [
+    "ASCARIASIS",
+    "CHOLERA",
+    "COVID",
+    "EBOLA VIRUS",
+    "ECTOPIC PREGNANCY",
+    "GONORRHEA",
+    "HEPATITIS B",
+    "HEPATITIS C",
+    "HERPES SIMPLEX",
+    "HIV",
+    "HOOKWORM INFECTION",
+    "MALARIA",
+    "MOLLUSCUM CONTAGIUSUM",
+    "PELVIC INFLAMMATORY DISEASE (PID)",
+    "PLACENTA PREVIA",
+    "POSPARTUM HEMORRHAGE",
+    "PREECLAMPSIA",
+    "PRETERM  LABOR",
+    "SCHISTOSOMIASIS",
+    "SUBSTANCE USE DISORDER",
+    "SYPHILLIS",
+    "TRICHURIASIS",
+    "TUBERCLOSIS",
+    "TYPHOID",
+    "YELLOW FEVER"
+  ],
+  "feature_count": 338,
+  "train_samples": 261,
+  "val_samples": 56,
+  "test_samples": 56
+}

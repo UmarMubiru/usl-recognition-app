@@ -1,0 +1,46 @@
+﻿# Virtual environments and dependencies
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Large data files
+*.mp4
+*.avi
+*.mov
+*.npy
+*.pkl
+*.joblib
+*.pth
+*.torch
+
+# Large directories - exclude content but keep structure
+DATASET_ug_sign_language/features/
+DATASET_ug_sign_language/Keypoints/
+DATASET_ug_sign_language/videos/
+SIGN LANGUAGE DISEASES FINISHED/
+models_dataset1/deployment/
+outputs/
+.streamlit/
+
+# Environment and config
+.env
+.env.local

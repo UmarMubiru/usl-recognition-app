@@ -1,0 +1,120 @@
+name: ML API CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r models_dataset1/deployment/requirements.txt
+          python -m pip install pandas
+
+      - name: Export best model artifact
+        run: |
+          python models_dataset1/csv_models/export_best_model.py --metric test_accuracy --augment
+
+        - name: Validate model quality threshold
+        run: |
+          python - << 'PY'
+          import json
+          from pathlib import Path
+
+          p1 = Path('models_dataset1/csv_models/artifacts/model_metrics.json')
+          p2 = Path('models_dataset1/csv_models/artifacts/model_metrics_svm_hgb.json')
+          if not p1.exists() or not p2.exists():
+            raise SystemExit('Missing metrics files for quality gate')
+
+          m1 = json.loads(p1.read_text(encoding='utf-8'))
+          m2 = json.loads(p2.read_text(encoding='utf-8'))
+
+          candidates = [
+            ('random_forest', m1['random_forest']),
+            ('logistic_regression', m1['logistic_regression']),
+            ('svm_rbf', m2['svm_rbf']),
+            ('hist_gradient_boosting', m2['hist_gradient_boosting']),
+          ]
+
+          best_name, best = max(candidates, key=lambda it: float(it[1]['test_accuracy']))
+          test_acc = float(best['test_accuracy'])
+          test_f1 = float(best['test_macro_f1'])
+
+          print('Best model in gate:', best_name, 'test_acc=', test_acc, 'test_f1=', test_f1)
+
+          if test_acc < 0.80:
+            raise SystemExit(f'Quality gate failed: test_accuracy {test_acc:.4f} < 0.80')
+          if test_f1 < 0.70:
+            raise SystemExit(f'Quality gate failed: test_macro_f1 {test_f1:.4f} < 0.70')
+
+          print('Quality gate passed')
+          PY
+
+      - name: Import API module
+        run: |
+          python -c "import models_dataset1.deployment.api as api; print(api.MODEL_NAME, len(api.FEATURE_COLS))"
+
+      - name: Smoke test API endpoints
+        run: |
+          python - << 'PY'
+          from fastapi.testclient import TestClient
+          from models_dataset1.deployment.api import app
+
+          client = TestClient(app)
+
+          ready = client.get('/ready')
+          assert ready.status_code == 200, ready.text
+
+          payload = {'features': {'dummy': 0.0}, 'top_k': 2}
+          pred = client.post('/predict', json=payload)
+          assert pred.status_code == 200, pred.text
+
+          body = pred.json()
+          assert 'predicted_label' in body
+          assert 'top_k' in body
+          print('Smoke test passed')
+          PY
+
+      - name: Build deployment container
+        run: |
+          docker build -f models_dataset1/deployment/Dockerfile -t usl-disease-api:ci .
+
+      - name: Smoke test containerized API
+        run: |
+          docker run -d --name usl-api-ci -p 8000:8000 usl-disease-api:ci
+          python - << 'PY'
+          import time
+          import urllib.request
+
+          url = 'http://127.0.0.1:8000/ready'
+          ok = False
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen(url, timeout=3) as r:
+                      if r.status == 200:
+                          ok = True
+                          break
+              except Exception:
+                  time.sleep(1)
+          if not ok:
+              raise SystemExit('Container readiness check failed')
+          print('Container readiness check passed')
+          PY
+
+      - name: Cleanup container
+        if: always()
+        run: |
+          docker rm -f usl-api-ci || true

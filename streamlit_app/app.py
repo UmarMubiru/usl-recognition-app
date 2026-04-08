@@ -1,0 +1,723 @@
+from __future__ import annotations
+
+import os
+import tempfile
+from pathlib import Path
+from typing import Any
+
+import joblib
+import numpy as np
+import streamlit as st
+from PIL import Image
+
+APP_DIR = Path(__file__).resolve().parent
+LOCAL_ARTIFACT = APP_DIR / "model.pkl"
+FALLBACK_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
+ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else FALLBACK_ARTIFACT)))
+
+
+@st.cache_resource
+def load_artifact(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Artifact not found: {path}")
+    payload = joblib.load(path)
+    required = {"model", "model_name", "feature_cols", "classes"}
+    if not isinstance(payload, dict) or required.difference(payload.keys()):
+        raise ValueError("Artifact must be dict with keys: model, model_name, feature_cols, classes")
+    return payload
+
+
+def _safe_stats(values: np.ndarray) -> tuple[float, float, float, float, float, float]:
+    if values.size == 0:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    return (
+        float(values.mean()),
+        float(values.std()),
+        float(np.percentile(values, 10)),
+        float(np.percentile(values, 25)),
+        float(np.percentile(values, 75)),
+        float(np.percentile(values, 90)),
+    )
+
+
+def _make_338_proxy_features(image_rgb: np.ndarray) -> dict[str, float]:
+    h, w = image_rgb.shape[:2]
+    gray = image_rgb.mean(axis=2).astype(np.float32)
+
+    gx = np.abs(np.diff(gray, axis=1)).mean() if w > 1 else 0.0
+    gy = np.abs(np.diff(gray, axis=0)).mean() if h > 1 else 0.0
+    motion_proxy = float((gx + gy) / 2.0)
+
+    gmean, gstd, gp10, gp25, gp75, gp90 = _safe_stats(gray.flatten())
+
+    # Pure image-statistics proxies to avoid fragile runtime dependencies.
+    sobel_like = float(
+        np.mean(np.abs(np.diff(gray, axis=0))) + np.mean(np.abs(np.diff(gray, axis=1)))
+    ) if h > 1 and w > 1 else 0.0
+    center = gray[h // 4 : (3 * h) // 4, w // 4 : (3 * w) // 4] if h >= 4 and w >= 4 else gray
+    center_mean = float(center.mean()) if center.size else gmean
+    edge_strength = float(abs(center_mean - gmean))
+    pseudo_presence = 1.0 if edge_strength > 1.0 else 0.0
+    pose_spread = float(np.std(gray) / 255.0)
+    hand_spread = float(min(1.0, sobel_like / 255.0))
+
+    base = {
+        "fps": 1.0,
+        "frame_count": 1.0,
+        "duration_sec": 1.0,
+        "width": float(w),
+        "height": float(h),
+        "aspect_ratio": float(w / h) if h > 0 else 0.0,
+        "gray_mean_mean": gmean,
+        "gray_mean_std": gstd,
+        "gray_mean_p10": gp10,
+        "gray_mean_p25": gp25,
+        "gray_mean_p75": gp75,
+        "gray_mean_p90": gp90,
+        "gray_std_mean": gstd,
+        "gray_std_std": 0.0,
+        "gray_std_p10": gstd,
+        "gray_std_p25": gstd,
+        "gray_std_p75": gstd,
+        "gray_std_p90": gstd,
+        "motion_mean": motion_proxy,
+        "motion_std": 0.0,
+        "motion_p10": motion_proxy,
+        "motion_p25": motion_proxy,
+        "motion_p75": motion_proxy,
+        "motion_p90": motion_proxy,
+        "gray_start": gmean,
+        "gray_middle": gmean,
+        "gray_end": gmean,
+        "gray_trend": 0.0,
+        "motion_start": motion_proxy,
+        "motion_middle": motion_proxy,
+        "motion_end": motion_proxy,
+        "motion_trend": 0.0,
+        "gray_slope": 0.0,
+        "motion_slope": 0.0,
+        "motion_to_duration": motion_proxy,
+        "motion_to_frames": motion_proxy,
+        "intensity_to_motion": float(gstd / max(motion_proxy, 1e-6)),
+        "pose_presence_ratio": pseudo_presence,
+        "left_hand_presence_ratio": pseudo_presence,
+        "right_hand_presence_ratio": pseudo_presence,
+        "pose_spread_mean": pose_spread,
+        "pose_spread_std": 0.0,
+        "hand_spread_mean": hand_spread,
+        "hand_spread_std": 0.0,
+        "pose_motion_mean": 0.0,
+        "pose_motion_std": 0.0,
+        "hand_motion_mean": 0.0,
+        "hand_motion_std": 0.0,
+        "sampled_frames": 1.0,
+        "sampled_motion_steps": 0.0,
+    }
+
+    # Use global intensity histogram bins to fill hog slots deterministically.
+    hist, _ = np.histogram(gray, bins=144, range=(0, 255), density=True)
+    hist = hist.astype(np.float32)
+    base.update({f"hog_mean_{i}": float(hist[i]) for i in range(144)})
+    base.update({f"hog_std_{i}": 0.0 for i in range(144)})
+    return base
+
+
+def _softmax(values: np.ndarray) -> np.ndarray:
+    shifted = values - np.max(values)
+    exp_vals = np.exp(shifted)
+    denom = np.sum(exp_vals)
+    if denom <= 0:
+        return np.full_like(exp_vals, 1.0 / len(exp_vals), dtype=float)
+    return exp_vals / denom
+
+
+def predict_with_artifact(
+    model,
+    classes: list[str],
+    feature_cols: list[str],
+    features: dict[str, float],
+    top_k: int,
+) -> tuple[str, float, list[tuple[str, float]], int, int]:
+    missing_count = sum(1 for feat in feature_cols if feat not in features)
+    unknown_count = sum(1 for feat in features if feat not in feature_cols)
+    x_vec = np.array([float(features.get(feat, 0.0)) for feat in feature_cols], dtype=float).reshape(1, -1)
+
+    pred_idx = int(model.predict(x_vec)[0])
+
+    if hasattr(model, "predict_proba"):
+        probs = model.predict_proba(x_vec)[0].astype(float)
+    elif hasattr(model, "decision_function"):
+        decision = np.array(model.decision_function(x_vec)).reshape(-1)
+        if decision.shape[0] == 1 and len(classes) == 2:
+            p1 = 1.0 / (1.0 + np.exp(-decision[0]))
+            probs = np.array([1.0 - p1, p1], dtype=float)
+        else:
+            probs = _softmax(decision)
+    else:
+        probs = np.zeros(len(classes), dtype=float)
+        probs[pred_idx] = 1.0
+
+    top_k = min(top_k, len(classes))
+    top_idx = np.argsort(probs)[::-1][:top_k]
+    ranked = [(classes[int(i)], float(probs[int(i)])) for i in top_idx]
+    return classes[pred_idx], float(probs[pred_idx]), ranked, missing_count, unknown_count
+
+
+def _read_uploaded_image(uploaded_file) -> np.ndarray:
+    image = Image.open(uploaded_file).convert("RGB")
+    return np.asarray(image, dtype=np.uint8)
+
+
+def _extract_key_frames(video_bytes: bytes, video_name: str | None = None, max_frames: int = 3) -> list[np.ndarray]:
+    """Extract key frames from video using imageio-ffmpeg, without cv2 or mediapipe."""
+    try:
+        import imageio.v2 as imageio
+    except ImportError as exc:
+        st.error(f"Video support is unavailable: {exc}")
+        return []
+
+    temp_path: str | None = None
+    reader = None
+    try:
+        suffix = Path(video_name or "video.mp4").suffix or ".mp4"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(video_bytes)
+            temp_path = tmp.name
+
+        reader = imageio.get_reader(temp_path)
+
+        try:
+            frame_count = int(reader.count_frames())
+        except Exception:
+            frame_count = -1
+
+        frames: list[np.ndarray] = []
+        if frame_count > 0:
+            indices = sorted({0, frame_count // 2, frame_count - 1})
+            for idx in indices:
+                try:
+                    frames.append(np.asarray(reader.get_data(idx), dtype=np.uint8))
+                except Exception:
+                    continue
+        else:
+            buffered_frames: list[np.ndarray] = []
+            for frame in reader:
+                buffered_frames.append(np.asarray(frame, dtype=np.uint8))
+                if len(buffered_frames) >= 500:
+                    break
+
+            if buffered_frames:
+                indices = sorted({0, len(buffered_frames) // 2, len(buffered_frames) - 1})
+                frames = [buffered_frames[idx] for idx in indices if idx < len(buffered_frames)]
+
+        return frames[:max_frames]
+
+    except Exception as exc:
+        st.error(f"Failed to decode video: {exc}")
+        return []
+    finally:
+        if reader is not None:
+            try:
+                reader.close()
+            except Exception:
+                pass
+        if temp_path is not None:
+            try:
+                Path(temp_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
+def _predict_on_frames(
+    frames: list[np.ndarray],
+    model,
+    classes: list[str],
+    feature_cols: list[str],
+    top_k: int,
+) -> tuple[str, float, list[tuple[str, float]], int, int]:
+    """Predict on multiple frames and average the results."""
+    if not frames:
+        st.error("No frames extracted from video.")
+        return None, 0.0, [], 0, 0
+    
+    all_features_list = []
+    for frame in frames:
+        features = _make_338_proxy_features(frame)
+        all_features_list.append(features)
+    
+    # Average features across frames
+    avg_features = {}
+    for key in all_features_list[0].keys():
+        avg_features[key] = float(np.mean([f[key] for f in all_features_list]))
+    
+    # Predict on averaged features
+    label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
+        model=model,
+        classes=classes,
+        feature_cols=feature_cols,
+        features=avg_features,
+        top_k=top_k,
+    )
+    
+    return label, confidence, ranked, missing_count, unknown_count
+
+
+st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
+
+st.markdown("""
+    <style>
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+
+        :root {
+            --navy-900: #0b1f4a;
+            --navy-700: #123b84;
+            --navy-500: #1f57b8;
+            --white: #ffffff;
+            --sky-050: #eef1f5;
+            --sky-100: #e2e6eb;
+            --border: #d8e3ff;
+        }
+
+        /* Main background and fonts */
+        .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"],
+        [data-testid="stSidebar"] {
+            background: var(--sky-050) !important;
+        }
+
+        [data-testid="stAppViewContainer"] > .main,
+        .main {
+            background: linear-gradient(180deg, var(--sky-050) 0%, var(--sky-100) 100%) !important;
+            color: var(--navy-900);
+        }
+
+        .block-container {
+            background: var(--white) !important;
+            border: 1px solid #d6dde8;
+            border-radius: 14px;
+            box-shadow: 0 8px 22px rgba(11, 31, 74, 0.08);
+            padding: 1.25rem 1.5rem 2rem 1.5rem;
+        }
+
+        [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"] {
+            backdrop-filter: none !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stMetric"] {
+            background: #f8fbff;
+            border: 1px solid #d8e3ff;
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+        }
+
+        [data-testid="stMetric"] * {
+            color: var(--navy-900) !important;
+            text-shadow: none !important;
+        }
+
+        [data-testid="stFileUploader"],
+        [data-testid="stCameraInput"],
+        [data-testid="stSlider"],
+        [data-testid="stRadio"] {
+            background: var(--white);
+            border: 1px solid #d8e3ff;
+            border-radius: 10px;
+            padding: 0.65rem;
+        }
+
+        /* Uniform anti-fade styling across all visible content blocks */
+        [data-testid="stElementContainer"],
+        [data-testid="stMarkdownContainer"],
+        [data-testid="stText"],
+        [data-testid="stCaptionContainer"] {
+            opacity: 1 !important;
+            filter: none !important;
+            color: var(--navy-900) !important;
+            text-shadow: none !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"],
+        [data-testid="stCameraInput"] > div,
+        [data-testid="stSlider"] > div,
+        [data-testid="stRadio"] > div {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 10px !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] * {
+            opacity: 1 !important;
+            color: var(--navy-900) !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] button,
+        [data-testid="stFileUploader"] button {
+            background: #ffffff !important;
+            color: var(--navy-900) !important;
+            border: 1px solid #b7c9ef !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] button:hover,
+        [data-testid="stFileUploader"] button:hover {
+            border-color: var(--navy-500) !important;
+            background: #f3f7ff !important;
+        }
+
+        div[role="radiogroup"] {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 10px !important;
+            padding: 0.45rem 0.5rem !important;
+            opacity: 1 !important;
+        }
+
+        div[role="radiogroup"] label,
+        div[role="radiogroup"] p,
+        div[role="radiogroup"] span {
+            color: var(--navy-900) !important;
+            opacity: 1 !important;
+        }
+
+        [data-baseweb="radio"] {
+            background: #ffffff !important;
+            border: 1px solid #d8e3ff !important;
+            border-radius: 8px !important;
+            padding: 0.35rem 0.5rem !important;
+            margin-right: 0.4rem !important;
+        }
+
+        [data-baseweb="radio"]:hover {
+            border-color: var(--navy-500) !important;
+            box-shadow: 0 0 0 1px rgba(31, 87, 184, 0.16) inset !important;
+        }
+        
+        /* Header styling */
+        .header-title {
+            font-size: 3em;
+            font-weight: 700;
+            color: var(--navy-900);
+            text-align: center;
+            margin-bottom: 0.5em;
+            letter-spacing: 0.2px;
+        }
+        
+        .header-subtitle {
+            font-size: 1.2em;
+            color: var(--navy-700);
+            text-align: center;
+            margin-bottom: 2em;
+        }
+
+        .fa-icon {
+            color: var(--navy-700);
+            margin-right: 0.45rem;
+        }
+
+        .section-panel {
+            background: #ffffff;
+            border: 1px solid #d6dde8;
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            margin: 0.65rem 0 1rem 0;
+            box-shadow: 0 2px 8px rgba(11, 31, 74, 0.06);
+            color: var(--navy-900);
+            opacity: 1 !important;
+        }
+
+        .section-title {
+            margin: 0 0 0.55rem 0;
+            color: var(--navy-900);
+            font-weight: 700;
+            font-size: 1.08rem;
+            text-shadow: none;
+        }
+        
+        /* Card styling */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--navy-500);
+            border-radius: 10px;
+            padding: 1.5em;
+            margin: 1em 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* Button styling */
+        .stButton > button {
+            background: linear-gradient(135deg, var(--navy-700) 0%, var(--navy-500) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75em 2em;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(18, 59, 132, 0.28);
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(18, 59, 132, 0.35);
+        }
+        
+        /* Success message styling */
+        .success-box {
+            background: linear-gradient(135deg, #2e8b57 0%, #3ca66b 100%);
+            color: var(--white);
+            padding: 1.5em;
+            border-radius: 10px;
+            margin: 1em 0;
+            box-shadow: 0 4px 6px rgba(60, 166, 107, 0.2);
+            font-weight: 500;
+        }
+        
+        /* Prediction result styling */
+        .prediction-result {
+            background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+            color: var(--white);
+            padding: 2em;
+            border-radius: 12px;
+            text-align: center;
+            margin: 1.5em 0;
+            box-shadow: 0 8px 16px rgba(11, 31, 74, 0.2);
+        }
+        
+        .prediction-label {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 0.5em;
+        }
+        
+        .confidence-score {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #ffd966;
+        }
+        
+        /* Top predictions styling */
+        .top-predictions {
+            background: var(--sky-050);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5em;
+            margin: 1em 0;
+        }
+        
+        .prediction-item {
+            background: var(--white);
+            padding: 1em;
+            margin: 0.5em 0;
+            border-left: 4px solid var(--navy-500);
+            border-radius: 6px;
+            color: var(--navy-900);
+        }
+        
+        /* Radio button styling */
+        .css-1aumxpb { color: var(--navy-700); }
+        
+        /* Divider */
+        hr { border: 1px solid rgba(18, 59, 132, 0.2); }
+    </style>
+""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.markdown('<div class="header-title"><i class="fa-solid fa-hands fa-icon"></i>Uganda Sign Language Recognition</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-subtitle">AI-Powered Disease Sign Classification System</div>', unsafe_allow_html=True)
+
+try:
+    artifact = load_artifact(ARTIFACT_PATH)
+except Exception as exc:
+    st.error(f"Could not load artifact: {exc}")
+    st.error("Model loading failed. Ensure model.pkl exists in the app directory.")
+    st.stop()
+
+model = artifact["model"]
+model_name = str(artifact["model_name"])
+feature_cols = list(artifact["feature_cols"])
+classes = list(artifact["classes"])
+
+st.markdown("---")
+
+with st.container():
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Model Type", model_name.upper().replace("_", "-"))
+    with col2:
+        st.metric("Feature Count", len(feature_cols))
+    with col3:
+        st.metric("Disease Classes", len(classes))
+
+st.markdown("---")
+
+st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-sliders fa-icon'></i>Recognition Settings</div>", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+with col1:
+    top_k = st.slider("Show Top Predictions", min_value=1, max_value=10, value=3, help="Number of top predictions to display")
+with col2:
+    st.info("Tip: Use clear hand framing and good lighting for more stable predictions.")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("---")
+st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-camera fa-icon'></i>Choose Input Method</div>", unsafe_allow_html=True)
+
+input_mode = st.radio(
+    "Select how you want to provide the input:",
+    ["Upload Image", "Webcam Snapshot", "Video File"],
+    horizontal=True,
+    help="Image, webcam snapshot, or video file"
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+if "Upload Image" in input_mode:
+    uploaded_image = st.file_uploader(
+        "Upload an image",
+        type=["jpg", "jpeg", "png", "bmp", "webp", "jfif", "tif", "tiff"],
+        help="Supported: JPG, JPEG, PNG, BMP, WEBP, JFIF, TIF, TIFF",
+    )
+    if uploaded_image is not None:
+        try:
+            image_np = _read_uploaded_image(uploaded_image)
+        except Exception as exc:
+            st.error(f"Could not decode uploaded image: {exc}")
+            st.stop()
+        st.image(image_np, caption="Uploaded image", use_container_width=True)
+        if st.button("Predict", key="predict_image"):
+            with st.spinner("Extracting 338-compatible features from image and predicting..."):
+                features = _make_338_proxy_features(image_np)
+                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
+                    model=model,
+                    classes=classes,
+                    feature_cols=feature_cols,
+                    features=features,
+                    top_k=top_k,
+                )
+            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            
+            with st.container():
+                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
+                for idx, (name, score) in enumerate(ranked, 1):
+                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Missing Features", missing_count)
+            col2.metric("Unknown Features", unknown_count)
+
+if "Webcam Snapshot" in input_mode:
+    camera_file = st.camera_input("Take a picture")
+    if camera_file is not None:
+        try:
+            image_np = _read_uploaded_image(camera_file)
+        except Exception as exc:
+            st.error(f"Could not decode webcam snapshot: {exc}")
+            st.stop()
+        st.image(image_np, caption="Captured image", use_container_width=True)
+        if st.button("Predict", key="predict_camera"):
+            with st.spinner("Extracting 338-compatible features from snapshot and predicting..."):
+                features = _make_338_proxy_features(image_np)
+                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
+                    model=model,
+                    classes=classes,
+                    feature_cols=feature_cols,
+                    features=features,
+                    top_k=top_k,
+                )
+            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            
+            with st.container():
+                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
+                for idx, (name, score) in enumerate(ranked, 1):
+                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Missing Features", missing_count)
+            col2.metric("Unknown Features", unknown_count)
+
+if "Video File" in input_mode:
+    uploaded_video = st.file_uploader(
+        "Upload a video",
+        type=["mp4", "avi", "mov", "mkv", "webm", "flv", "wmv"],
+        help="Supported: MP4, AVI, MOV, MKV, WEBM, FLV, WMV",
+    )
+    if uploaded_video is not None:
+        with st.spinner("Extracting key frames from video..."):
+            video_bytes = uploaded_video.read()
+            frames = _extract_key_frames(video_bytes, uploaded_video.name, max_frames=3)
+        
+        if frames:
+            st.info(f"✓ Extracted {len(frames)} key frames from video (first, middle, last)")
+            
+            # Show extracted frames in columns
+            cols = st.columns(len(frames))
+            for idx, frame in enumerate(frames):
+                with cols[idx]:
+                    st.image(frame, caption=f"Frame {idx + 1}", use_container_width=True)
+            
+            if st.button("Predict on Video", key="predict_video"):
+                with st.spinner("Extracting 338-compatible features from key frames and predicting..."):
+                    label, confidence, ranked, missing_count, unknown_count = _predict_on_frames(
+                        frames=frames,
+                        model=model,
+                        classes=classes,
+                        feature_cols=feature_cols,
+                        top_k=top_k,
+                    )
+                
+                if label is not None:
+                    st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+                    
+                    with st.container():
+                        st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
+                        for idx, (name, score) in enumerate(ranked, 1):
+                            st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    col1.metric("Missing Features", missing_count)
+                    col2.metric("Unknown Features", unknown_count)
+                    st.success("✓ Video prediction complete!")
+        else:
+            st.error("Could not extract frames from this video. Try MP4 or AVI format.")
+
+st.markdown("---")
+
+with st.container():
+    st.markdown("""
+        <div class="section-panel" style="text-align: center; margin-top: 2em; padding: 1.5em; background: #ffffff;">
+        <h4><i class="fa-solid fa-circle-info" style="margin-right:0.45rem;color:#123b84"></i>System Information</h4>
+        <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
+        <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
+        <p><strong>Test Accuracy:</strong> 87.5%</p>
+        <p><strong>Note:</strong> Deployed cloud mode uses image, webcam, and video proxy features for compatibility.</p>
+        <p style="font-size: 0.9em; color: #888;">
+            <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>
+        </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<hr style='border: 2px solid #123b84;'>", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-code'></i> Built with Streamlit</p>", unsafe_allow_html=True)
+with col2:
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-brain'></i> Powered by scikit-learn</p>", unsafe_allow_html=True)
+with col3:
+    st.markdown("<p style='text-align:center'><i class='fa-solid fa-building-columns'></i> Makerere University</p>", unsafe_allow_html=True)
+
+st.markdown("<p style='text-align:center; color: #999; font-size: 0.85em; margin-top: 1em;'>Made for Uganda Sign Language Research | 2026</p>", unsafe_allow_html=True)

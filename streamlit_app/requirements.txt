@@ -1,0 +1,7 @@
+streamlit>=1.43,<2
+numpy>=2.1,<3
+scikit-learn>=1.7,<2
+joblib>=1.4,<2
+Pillow>=11.2,<12
+imageio>=2.37,<3
+imageio-ffmpeg>=0.6,<1

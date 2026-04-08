@@ -1,0 +1,58 @@
+{
+  "random_forest_acc": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.819988344988345,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_random_forest_acc.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_random_forest_acc.png"
+  },
+  "random_forest_f1_macro": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.765860751993105,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_random_forest_f1_macro.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_random_forest_f1_macro.png"
+  },
+  "logistic_regression_acc": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8544289044289045,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_logistic_regression_acc.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_logistic_regression_acc.png"
+  },
+  "logistic_regression_f1_macro": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8291973892120952,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_logistic_regression_f1_macro.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_logistic_regression_f1_macro.png"
+  },
+  "svm_rbf_acc": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8620629370629371,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_svm_rbf_acc.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_svm_rbf_acc.png"
+  },
+  "svm_rbf_f1_macro": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8343131868131869,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_svm_rbf_f1_macro.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_svm_rbf_f1_macro.png"
+  },
+  "hist_gradient_boosting_acc": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8506410256410257,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_hist_gradient_boosting_acc.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_hist_gradient_boosting_acc.png"
+  },
+  "hist_gradient_boosting_f1_macro": {
+    "max_train_size": 195.0,
+    "train_mean_at_max_size": 1.0,
+    "val_mean_at_max_size": 0.8003885297708827,
+    "csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_hist_gradient_boosting_f1_macro.csv",
+    "png": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\learning_curves\\learning_curve_hist_gradient_boosting_f1_macro.png"
+  }
+}

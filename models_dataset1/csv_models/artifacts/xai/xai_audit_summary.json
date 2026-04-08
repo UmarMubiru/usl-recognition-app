@@ -1,0 +1,94 @@
+{
+  "xai_method": [
+    "Permutation Importance (model-agnostic)",
+    "Intrinsic Importances (RF/HGB/LR coefficients)"
+  ],
+  "feature_count": 338,
+  "classes": [
+    "ASCARIASIS",
+    "CHOLERA",
+    "COVID",
+    "EBOLA VIRUS",
+    "ECTOPIC PREGNANCY",
+    "GONORRHEA",
+    "HEPATITIS B",
+    "HEPATITIS C",
+    "HERPES SIMPLEX",
+    "HIV",
+    "HOOKWORM INFECTION",
+    "MALARIA",
+    "MOLLUSCUM CONTAGIUSUM",
+    "PELVIC INFLAMMATORY DISEASE (PID)",
+    "PLACENTA PREVIA",
+    "POSPARTUM HEMORRHAGE",
+    "PREECLAMPSIA",
+    "PRETERM  LABOR",
+    "SCHISTOSOMIASIS",
+    "SUBSTANCE USE DISORDER",
+    "SYPHILLIS",
+    "TRICHURIASIS",
+    "TUBERCLOSIS",
+    "TYPHOID",
+    "YELLOW FEVER"
+  ],
+  "models": {
+    "random_forest": {
+      "val_accuracy": 0.9107142857142857,
+      "test_accuracy": 0.8392857142857143,
+      "val_macro_f1": 0.8818754578754578,
+      "test_macro_f1": 0.7908544788544789,
+      "intrinsic_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\intrinsic_importance_random_forest.csv",
+      "permutation_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\permutation_importance_random_forest.csv",
+      "top5_permutation_features": [
+        "fps",
+        "hog_std_65",
+        "duration_sec",
+        "frame_count",
+        "motion_p10"
+      ]
+    },
+    "logistic_regression": {
+      "val_accuracy": 0.8571428571428571,
+      "test_accuracy": 0.8571428571428571,
+      "val_macro_f1": 0.8552087912087911,
+      "test_macro_f1": 0.8053766233766234,
+      "intrinsic_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\intrinsic_importance_logistic_regression.csv",
+      "permutation_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\permutation_importance_logistic_regression.csv",
+      "top5_permutation_features": [
+        "motion_std",
+        "intensity_to_motion",
+        "motion_middle",
+        "motion_end",
+        "hog_mean_85"
+      ]
+    },
+    "svm_rbf": {
+      "val_accuracy": 0.8928571428571429,
+      "test_accuracy": 0.875,
+      "val_macro_f1": 0.8889230769230769,
+      "test_macro_f1": 0.8388278388278388,
+      "permutation_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\permutation_importance_svm_rbf.csv",
+      "top5_permutation_features": [
+        "hog_std_58",
+        "hog_mean_86",
+        "motion_end",
+        "motion_p75",
+        "hog_mean_115"
+      ]
+    },
+    "hist_gradient_boosting": {
+      "val_accuracy": 0.8035714285714286,
+      "test_accuracy": 0.8214285714285714,
+      "val_macro_f1": 0.7445421245421245,
+      "test_macro_f1": 0.7376330336330337,
+      "permutation_importance_csv": "D:\\UGANDA SIGN LANGUAGE INSTRUCTOR\\models_dataset1\\csv_models\\artifacts\\xai\\permutation_importance_hist_gradient_boosting.csv",
+      "top5_permutation_features": [
+        "hog_mean_6",
+        "fps",
+        "hog_mean_79",
+        "hog_mean_101",
+        "hog_mean_83"
+      ]
+    }
+  }
+}

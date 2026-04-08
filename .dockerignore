@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.ipynb
+.git/
+.gitignore
+outputs/
+DATASET_ug_sign_language/videos/
+DATASET_ug_sign_language/Keypoints/
+DATASET_ug_sign_language/features/
+SIGN LANGUAGE DISEASES FINISHED/

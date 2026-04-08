@@ -1,0 +1,374 @@
+sample_id,category,split
+ASCARIASIS__Screening prompts__you experience vomiting before ,ASCARIASIS,test
+CHOLERA__Diagnostic prompts__DARKFIELD microscopy diagnose cholera finish,CHOLERA,test
+COVID__diagnostic prompts__You got tested using nasopharyngeal swab,COVID,test
+COVID__diagnostic prompts__you got tested using lateral flow test ,COVID,test
+COVID__diagnostic prompts__you refeered for RT-LAMP test ,COVID,test
+COVID__screening prompts__anyone your household got shortness breath before,COVID,test
+COVID__screening prompts__you got night sweats before ,COVID,test
+COVID__screening prompts__you have shortness breath combined with breathing difficulty,COVID,test
+EBOLA VIRUS__Screening prompts__You experienced diarrhea before,EBOLA VIRUS,test
+EBOLA VIRUS__Screening prompts__You experienced sudden fever before,EBOLA VIRUS,test
+EBOLA VIRUS__Screening prompts__You experienced weakness before,EBOLA VIRUS,test
+ECTOPIC PREGNANCY__Diagnostic prompts__DOPPLER SCAN used assess for ectopic pregnancy,ECTOPIC PREGNANCY,test
+ECTOPIC PREGNANCY__Screening prompts__you got shoulder pain in pregnancy,ECTOPIC PREGNANCY,test
+GONORRHEA__screening prompts__you experience pelvic pain in past week  - Copy (2),GONORRHEA,test
+GONORRHEA__screening prompts__you experience pelvic swollen testicles in past week ,GONORRHEA,test
+GONORRHEA__screening prompts__you experience pelvic swollen testicles in past week  - Copy (2),GONORRHEA,test
+HEPATITIS B__Screening prompts__You experienced fever in past week ,HEPATITIS B,test
+HEPATITIS C__Diagnostic promts__ELISA done to check  for hepatitis C,HEPATITIS C,test
+HEPATITIS C__Diagnostic promts__Liver function test conducted to check for hepatitis C,HEPATITIS C,test
+HERPES SIMPLEX__Diagnostic prompts__Pcr finished to test for herpes simplex virus ,HERPES SIMPLEX,test
+HIV__diagnostic prompts__you undergo elisa for HIV AIDS,HIV,test
+HIV__screening prompts__you experience fatigue before,HIV,test
+HOOKWORM INFECTION__Diagnostic prompts__stool microscopy test for hookworm infection finish,HOOKWORM INFECTION,test
+HOOKWORM INFECTION__Screening prompts__you experienced abdominal pain before,HOOKWORM INFECTION,test
+MALARIA__diagnostic prompts__Blood serology test finished,MALARIA,test
+MALARIA__diagnostic prompts__Lab person finish rapid malaria diagnostic ,MALARIA,test
+MALARIA__diagnostic prompts__Lab person finished antigen detection ,MALARIA,test
+MALARIA__diagnostic prompts__You reffered for antigen dectection ,MALARIA,test
+MALARIA__screening prompts__anyone your family got vomiting before ,MALARIA,test
+MALARIA__screening prompts__you got vomiting past few days,MALARIA,test
+MOLLUSCUM CONTAGIUSUM__Screening prompts__you got redness before ,MOLLUSCUM CONTAGIUSUM,test
+PELVIC INFLAMMATORY DISEASE (PID)__Diagnostic prompts__Naat diagnose pelvic inflammatory disease finish ,PELVIC INFLAMMATORY DISEASE (PID),test
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__You got not normal vaginal discharge before,PELVIC INFLAMMATORY DISEASE (PID),test
+PLACENTA PREVIA__Diagnostic prompts__Fetal monitoring used assess for placenta previa ,PLACENTA PREVIA,test
+PLACENTA PREVIA__Diagnostic prompts__Transvaginal ultrasound used assesss for placenta previa,PLACENTA PREVIA,test
+POSPARTUM HEMORRHAGE__Diagnostic prompts__Vital signs monitoring used to asess for postartum hermorrhage ],POSPARTUM HEMORRHAGE,test
+PREECLAMPSIA__Diagnostic prompts__24 hour urine protein used assess for preeclampsia,PREECLAMPSIA,test
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Diagnostic prompts__you undergo colposcopy for human papiloma virus finish,PREECLAMPSIA,test
+PREECLAMPSIA__Screening prompts__you experienced visual disturbances during pregn,PREECLAMPSIA,test
+PRETERM  LABOR__Screening prompts__you got cramping during pregnancy ,PRETERM  LABOR,test
+PRETERM  LABOR__Screening prompts__you got low back pain during pregnancy ,PRETERM  LABOR,test
+SCHISTOSOMIASIS__Diagnostic prompts__urine filtration test for schistosomiasis finish ,SCHISTOSOMIASIS,test
+SUBSTANCE USE DISORDER__Diagnostic prompts__Screening questionnaires finish for substance use disorders assessment,SUBSTANCE USE DISORDER,test
+SUBSTANCE USE DISORDER__Screening prompts__you experiencing loss of control frequently ,SUBSTANCE USE DISORDER,test
+SYPHILLIS__screening prompts__you experience fatigue in past week ,SYPHILLIS,test
+TRICHURIASIS__Screening prompts__you got blood diarrhea before,TRICHURIASIS,test
+TUBERCLOSIS__diagnostic prompts__clinician requested sputum culture ,TUBERCLOSIS,test
+TUBERCLOSIS__diagnostic prompts__you referred for sputum smear test ,TUBERCLOSIS,test
+TUBERCLOSIS__diagnostic prompts__you undergone sputum smear before ,TUBERCLOSIS,test
+TUBERCLOSIS__diagnostic prompts__your sputum tested with sputum culture,TUBERCLOSIS,test
+TUBERCLOSIS__screening prompts__you got night sweats before ,TUBERCLOSIS,test
+TUBERCLOSIS__screening prompts__you got persistent cough lasting 2 weeks,TUBERCLOSIS,test
+TYPHOID__Diagnostic prompts__stool culture diagnose typhoid finish ,TYPHOID,test
+TYPHOID__Screening prompts__you experienced loss of appetite before ,TYPHOID,test
+YELLOW FEVER__Diagnostic prompts__Elisa confirm yellow fever finish ,YELLOW FEVER,test
+YELLOW FEVER__Diagnostic prompts__Liver function test confirm yellow fever finish ,YELLOW FEVER,test
+ASCARIASIS__Diagnostic prompts__ABDOMINAL ULTRASOUND  test  for ascariasis finish ,ASCARIASIS,train
+ASCARIASIS__Diagnostic prompts__CHEST X-RAY  test  for ascariasis finish ,ASCARIASIS,train
+ASCARIASIS__Diagnostic prompts__PCR test for ascariasis finish ,ASCARIASIS,train
+ASCARIASIS__Screening prompts__you experience wheezing before ,ASCARIASIS,train
+ASCARIASIS__Screening prompts__you feel like vomiting before ,ASCARIASIS,train
+ASCARIASIS__Screening prompts__you got cough before,ASCARIASIS,train
+CHOLERA__Diagnostic prompts__RECTAL SWAB  diagnose cholera finish,CHOLERA,train
+CHOLERA__Diagnostic prompts__Rapid dipstick diagnose cholera finish,CHOLERA,train
+CHOLERA__Screening prompts__you experienced vomiting before ,CHOLERA,train
+CHOLERA__Screening prompts__you feel like vomiting before ,CHOLERA,train
+CHOLERA__Screening prompts__you got dry mouth before ,CHOLERA,train
+CHOLERA__Screening prompts__you got leg pain before,CHOLERA,train
+CHOLERA__Screening prompts__you got watery diarrhea before,CHOLERA,train
+COVID__diagnostic prompts__Healthcare worker Do antigen rapid diagnostic,COVID,train
+COVID__diagnostic prompts__RT-LAMP test finished ,COVID,train
+COVID__diagnostic prompts__lateral flow test finished ,COVID,train
+COVID__diagnostic prompts__you got taken nasopharyngeal swab before,COVID,train
+COVID__diagnostic prompts__you got tested using pcr,COVID,train
+COVID__diagnostic prompts__you refeered for antigen rapid diagnostic test  ,COVID,train
+COVID__diagnostic prompts__you refeered for lateral flow test  ,COVID,train
+COVID__diagnostic prompts__you referred for pcr test ,COVID,train
+COVID__diagnostic prompts__you taken antigen rapid diagnostic test before ,COVID,train
+COVID__diagnostic prompts__you taken lateral flow test before ,COVID,train
+COVID__screening prompts__Anyone your household got taste no or smell before,COVID,train
+COVID__screening prompts__anyone in your household got sore throat before ,COVID,train
+COVID__screening prompts__anyone your household got dry cough before,COVID,train
+COVID__screening prompts__you currently experiencing loss of tatste or smell,COVID,train
+COVID__screening prompts__you currently suffering from fatique,COVID,train
+COVID__screening prompts__you currently suffering from fever,COVID,train
+COVID__screening prompts__you currently suffering from sore throat,COVID,train
+COVID__screening prompts__you have dry cough that started quickly,COVID,train
+COVID__screening prompts__you have fatigue combined with breathing difficulty,COVID,train
+COVID__screening prompts__you have fatigue that started suddenly ,COVID,train
+COVID__screening prompts__you have fever combined with breathing difficulty,COVID,train
+COVID__screening prompts__you have fever that started quickly,COVID,train
+COVID__screening prompts__you have no taste and smell that started quickly,COVID,train
+COVID__screening prompts__you have shortness breath that started quickly,COVID,train
+COVID__screening prompts__you have sore throat combined with breathing difficulty,COVID,train
+COVID__screening prompts__you have sore throat that started quickly,COVID,train
+COVID__screening prompts__you have taste no or smell combined with breathing difficulty ,COVID,train
+COVID__screening prompts__you now suffering from fatigue ,COVID,train
+EBOLA VIRUS__Diagnostic prompts__Antigen-capture test done to diagnose ebola virus disease,EBOLA VIRUS,train
+EBOLA VIRUS__Diagnostic prompts__Elisa done to diagnose ebola virus disease,EBOLA VIRUS,train
+EBOLA VIRUS__Diagnostic prompts__Serology done to diagnose ebola virus disease,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced Confusion before,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced Confusion before (2),EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced Nausea before,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced Nausea before (2),EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced diarrhea before ,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced muscle pain before (2),EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced sudden fever before ,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced vomiting before,EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced vomiting before (2),EBOLA VIRUS,train
+EBOLA VIRUS__Screening prompts__You experienced weakness before (2),EBOLA VIRUS,train
+ECTOPIC PREGNANCY__Diagnostic prompts__PELVIC EXAM  used assess for ectopic pregnancy,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Diagnostic prompts__SERUM HCG  used assess for ectopic pregnancy,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Diagnostic prompts__TRANSVAGINAL ULTRASOUND used assess for ectopic pregnancy,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Diagnostic prompts__URINE PREGNANCY TEST  used assess for ectopic pregnancy,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Screening prompts__you experience vaginal bleeding in pregnancy,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Screening prompts__you feel like vomiting before ,ECTOPIC PREGNANCY,train
+ECTOPIC PREGNANCY__Screening prompts__you got abdominal pain  in pregnancy,ECTOPIC PREGNANCY,train
+GONORRHEA__diagnostic prompts__Gram stain  test to test gonorrhea finished ,GONORRHEA,train
+GONORRHEA__diagnostic prompts__swab test to test gonorrhea finished ,GONORRHEA,train
+GONORRHEA__screening prompts__you experience discharge from your genitals in past week ,GONORRHEA,train
+GONORRHEA__screening prompts__you experience discharge from your genitals in past week  - Copy,GONORRHEA,train
+GONORRHEA__screening prompts__you experience discharge from your genitals in past week  - Copy (2),GONORRHEA,train
+GONORRHEA__screening prompts__you experience pain in sex in past week  - Copy,GONORRHEA,train
+GONORRHEA__screening prompts__you experience pain in sex in past week  - Copy (2),GONORRHEA,train
+GONORRHEA__screening prompts__you experience painful urination  in past week ,GONORRHEA,train
+GONORRHEA__screening prompts__you experience painful urination  in past week  - Copy,GONORRHEA,train
+GONORRHEA__screening prompts__you experience painful urination  in past week  - Copy (2),GONORRHEA,train
+GONORRHEA__screening prompts__you experience pelvic pain in past week ,GONORRHEA,train
+GONORRHEA__screening prompts__you experience pelvic pain in past week  - Copy,GONORRHEA,train
+GONORRHEA__screening prompts__you experience pelvic swollen testicles in past week  - Copy,GONORRHEA,train
+HEPATITIS B__Diagnostic prompts__ANTI-HBc test  finished to test hepatitis B,HEPATITIS B,train
+HEPATITIS B__Diagnostic prompts__ELISA DNA PCR  finished to test hepatitis B,HEPATITIS B,train
+HEPATITIS B__Diagnostic prompts__HBV DNA PCR  finished to test hepatitis B,HEPATITIS B,train
+HEPATITIS B__Diagnostic prompts__HBsAg test finished to test for hepatitis B,HEPATITIS B,train
+HEPATITIS B__Diagnostic prompts__LIVER FUNCTION TEST  finished to test hepatitis B,HEPATITIS B,train
+HEPATITIS B__Screening prompts__You experienced abdominal pain before,HEPATITIS B,train
+HEPATITIS B__Screening prompts__You experienced joint pain before,HEPATITIS B,train
+HEPATITIS B__Screening prompts__You experienced loss of appetitte before ,HEPATITIS B,train
+HEPATITIS C__Diagnostic promts__GENOTYPE test conducted to  check  for hepatitis C,HEPATITIS C,train
+HEPATITIS C__Diagnostic promts__HCV RNA PCR  conducted to check  for hepatitis C,HEPATITIS C,train
+HEPATITIS C__Screening prompts__You experienced body pain before,HEPATITIS C,train
+HEPATITIS C__Screening prompts__You experienced diarrhea before ,HEPATITIS C,train
+HEPATITIS C__Screening prompts__You experienced fatigue before,HEPATITIS C,train
+HEPATITIS C__Screening prompts__You experienced loss of appetite before ,HEPATITIS C,train
+HEPATITIS C__Screening prompts__You experienced nausea before ,HEPATITIS C,train
+HERPES SIMPLEX__Diagnostic prompts__Antibody blood test finished to test herpes simple,HERPES SIMPLEX,train
+HERPES SIMPLEX__Diagnostic prompts__Direct flourescent antibody test finished to test herpes simplex virus,HERPES SIMPLEX,train
+HERPES SIMPLEX__Diagnostic prompts__Tzanck smear finished to test herpes simplex virus,HERPES SIMPLEX,train
+HERPES SIMPLEX__Diagnostic prompts__Viral culture performed to test herpes simplex virus,HERPES SIMPLEX,train
+HERPES SIMPLEX__Screening prompts__You experienced itching before ,HERPES SIMPLEX,train
+HERPES SIMPLEX__Screening prompts__You experienced joint pain before ,HERPES SIMPLEX,train
+HERPES SIMPLEX__Screening prompts__You experienced painful sores before ,HERPES SIMPLEX,train
+HERPES SIMPLEX__Screening prompts__You experienced tingling sensation before ,HERPES SIMPLEX,train
+HIV__diagnostic prompts__You undergo CD4 count for HIV AIDS,HIV,train
+HIV__diagnostic prompts__You undergo HIV Rapid test for HIV AIDS,HIV,train
+HIV__diagnostic prompts__You undergo western blot for HIV AIDS,HIV,train
+HIV__diagnostic prompts__you undergo viral load test for HIV AIDS,HIV,train
+HIV__screening prompts__you experience diarrhea before ,HIV,train
+HIV__screening prompts__you experience fever before,HIV,train
+HIV__screening prompts__you experience night sweats before,HIV,train
+HIV__screening prompts__you experience vaginal discharge before ,HIV,train
+HOOKWORM INFECTION__Diagnostic prompts__PCR test for hookworm infection finsih ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Diagnostic prompts__complete blood count test for hookworm infection ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Diagnostic prompts__kato-katz exam for hookworm ninfection finish ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Diagnostic prompts__serology test for hookworm infection finish ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Screening prompts__you experienced fatigue before ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Screening prompts__you got diarrhea before ,HOOKWORM INFECTION,train
+HOOKWORM INFECTION__Screening prompts__you got weight loss before ,HOOKWORM INFECTION,train
+MALARIA__diagnostic prompts__Blood smear test finished,MALARIA,train
+MALARIA__diagnostic prompts__Clinician finished malaria rapid diagnostic,MALARIA,train
+MALARIA__diagnostic prompts__Lab person finish blood smear,MALARIA,train
+MALARIA__diagnostic prompts__Lab person finish serology ,MALARIA,train
+MALARIA__diagnostic prompts__Lab technician finished pcr,MALARIA,train
+MALARIA__diagnostic prompts__Serology test finished,MALARIA,train
+MALARIA__diagnostic prompts__You reffered for pcr,MALARIA,train
+MALARIA__diagnostic prompts__Your blood tested using antigen detection ,MALARIA,train
+MALARIA__diagnostic prompts__Your blood tested using pcr,MALARIA,train
+MALARIA__diagnostic prompts__Your blood testted using serology ,MALARIA,train
+MALARIA__diagnostic prompts__anti gen detection test finished ,MALARIA,train
+MALARIA__diagnostic prompts__clinician finish serology ,MALARIA,train
+MALARIA__diagnostic prompts__clinician finished antigen detection ,MALARIA,train
+MALARIA__diagnostic prompts__pcr test finished ,MALARIA,train
+MALARIA__diagnostic prompts__you referred for malaria rapid diagnostic ,MALARIA,train
+MALARIA__screening prompts__anyone in your family got fever before,MALARIA,train
+MALARIA__screening prompts__anyone in your family got headache before ,MALARIA,train
+MALARIA__screening prompts__you experience chest pain frequently ,MALARIA,train
+MALARIA__screening prompts__you experience vomiting before ,MALARIA,train
+MALARIA__screening prompts__you experiencebody weakness more in the night ,MALARIA,train
+MALARIA__screening prompts__you experince body weakness before ,MALARIA,train
+MALARIA__screening prompts__you got fever past few days,MALARIA,train
+MALARIA__screening prompts__you got joint pain more in nigh,MALARIA,train
+MALARIA__screening prompts__you got joint pain past few days,MALARIA,train
+MALARIA__screening prompts__you have body weakness,MALARIA,train
+MALARIA__screening prompts__you have chills,MALARIA,train
+MALARIA__screening prompts__you have fever,MALARIA,train
+MALARIA__screening prompts__you have joint pain,MALARIA,train
+MALARIA__screening prompts__you have vomiting pain ,MALARIA,train
+MOLLUSCUM CONTAGIUSUM__Diagnostic prompts__Pcr finish diagnose molluscum contagiusum,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Diagnostic prompts__Skin biopsy finsih diagnose molluscum contagiusum ,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Diagnostic prompts__dermoscopy finish diagnose molluscum contagiusum,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Screening prompts__you got inflammation before ,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Screening prompts__you got itching before ,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Screening prompts__you got pearly bumps before ,MOLLUSCUM CONTAGIUSUM,train
+MOLLUSCUM CONTAGIUSUM__Screening prompts__you got skin irritation before ,MOLLUSCUM CONTAGIUSUM,train
+PELVIC INFLAMMATORY DISEASE (PID)__Diagnostic prompts__CBC diagnose pelvic inflammatory disease finish ,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Diagnostic prompts__Endometrial biopsy diagnose pelvic inflamatory disease,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Diagnostic prompts__Labaroscopy diagnose pelvic inflammatory disease finish,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Diagnostic prompts__Pelvic ultrasound diagnose pelvic inflammatory ,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__You got pain in sex before ,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__you got fever before ,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__you got lowere abdominal pain before ,PELVIC INFLAMMATORY DISEASE (PID),train
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__you got not normal menstruation before ,PELVIC INFLAMMATORY DISEASE (PID),train
+PLACENTA PREVIA__Diagnostic prompts__CBC used assess for placenta previa ,PLACENTA PREVIA,train
+PLACENTA PREVIA__Diagnostic prompts__Hematocrit used assess for placenta previa ,PLACENTA PREVIA,train
+PLACENTA PREVIA__Screening prompts__You experienced pelvic pressure during pregnancy ,PLACENTA PREVIA,train
+PLACENTA PREVIA__Screening prompts__You experienced uterine discomfort in pregnancy ,PLACENTA PREVIA,train
+PLACENTA PREVIA__Screening prompts__you experienced preterm contractions during pregnancy,PLACENTA PREVIA,train
+PLACENTA PREVIA__Screening prompts__you got abdominal heaviness during pregnancy ,PLACENTA PREVIA,train
+PLACENTA PREVIA__Screening prompts__you got painless vaginal bleeding during pregnancy,PLACENTA PREVIA,train
+POSPARTUM HEMORRHAGE__Diagnostic prompts__Blood clotting profile used assess for postpartum hermorrhage,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Diagnostic prompts__CBC used assess for postpartum hermorrhage ,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Diagnostic prompts__ultrasound used assses for postpartum hemorrhage ,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Screening prompts__you experienced feeling faint during pregnancy,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Screening prompts__you feel like vomiting before ,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Screening prompts__you got dizziness in pregnancy before ,POSPARTUM HEMORRHAGE,train
+POSPARTUM HEMORRHAGE__Screening prompts__you got heavy vaginal bleeding in pregnancy ,POSPARTUM HEMORRHAGE,train
+PREECLAMPSIA__Diagnostic prompts__Blood pressure measurement used assess for preecla,PREECLAMPSIA,train
+PREECLAMPSIA__Diagnostic prompts__CBC used assess for preeclampsia ,PREECLAMPSIA,train
+PREECLAMPSIA__Diagnostic prompts__Liver function test used assess for preclampsia ,PREECLAMPSIA,train
+PREECLAMPSIA__Diagnostic prompts__Urine dipstick used assess for preeclampsia ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Diagnostic prompts__you undergo HPV-DNA test for human papiloma virus ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Diagnostic prompts__you undergo visual inspection with acetricv acid for human papiloma virus finish,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced bleeding during intercourse before,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced genital warts before ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced itching in genital area before ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced painful intercourse before ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced painful sores before ,PREECLAMPSIA,train
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Screening prompts__you experienced vaginal discgarge before ,PREECLAMPSIA,train
+PREECLAMPSIA__Screening prompts__you experienced nausea during pregnancy ,PREECLAMPSIA,train
+PREECLAMPSIA__Screening prompts__you experienced shortness of breath during pregnan,PREECLAMPSIA,train
+PREECLAMPSIA__Screening prompts__you got swelling during pregnancy ,PREECLAMPSIA,train
+PRETERM  LABOR__Diagnostic prompts__Fetal fibronectin used assess for preterm labor ,PRETERM  LABOR,train
+PRETERM  LABOR__Diagnostic prompts__Non stress test used assess for preterm labor,PRETERM  LABOR,train
+PRETERM  LABOR__Diagnostic prompts__cervical length ultrasound used asses for preterm labor,PRETERM  LABOR,train
+PRETERM  LABOR__Diagnostic prompts__tocodynamometry used assess for preterm labor,PRETERM  LABOR,train
+PRETERM  LABOR__Screening prompts__you experienced pelvic pressure during pregnacy ,PRETERM  LABOR,train
+PRETERM  LABOR__Screening prompts__you experienced regular contractions during pregnancy,PRETERM  LABOR,train
+PRETERM  LABOR__Screening prompts__you experienced vaginal discharge during pregnancy,PRETERM  LABOR,train
+SCHISTOSOMIASIS__Diagnostic prompts__Kato katz stool exam test for schistosomiasis finish ,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Diagnostic prompts__Pcr test for schistomiasis finish,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Diagnostic prompts__Rectal biopsy test for schistomiasis finish ,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Diagnostic prompts__Serology test for schistomiasis finish ,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Screening prompts__you experienced abdominal pain before ,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Screening prompts__you experienced fatique before ,SCHISTOSOMIASIS,train
+SCHISTOSOMIASIS__Screening prompts__you got diarrhea before ,SCHISTOSOMIASIS,train
+SUBSTANCE USE DISORDER__Diagnostic prompts__DAST finish for substance use disorders assessment,SUBSTANCE USE DISORDER,train
+SUBSTANCE USE DISORDER__Diagnostic prompts__DSM-5 Criteria finish for substance use disorders  asessement,SUBSTANCE USE DISORDER,train
+SUBSTANCE USE DISORDER__Diagnostic prompts__clinical interview finish for substance use disorder,SUBSTANCE USE DISORDER,train
+SUBSTANCE USE DISORDER__Screening prompts__you experiencing neglecting responsibilities frequently,SUBSTANCE USE DISORDER,train
+SUBSTANCE USE DISORDER__Screening prompts__you experiencing tolerance frequently ,SUBSTANCE USE DISORDER,train
+SUBSTANCE USE DISORDER__Screening prompts__you got craving frequently ,SUBSTANCE USE DISORDER,train
+SYPHILLIS__diagnostic prompts__DARK FIELD microscopy finish to test syphilis ,SYPHILLIS,train
+SYPHILLIS__diagnostic prompts__FTA-ABS finish to test syphilis,SYPHILLIS,train
+SYPHILLIS__diagnostic prompts__RPR test to test syphilis finish,SYPHILLIS,train
+SYPHILLIS__diagnostic prompts__VDRL  test to test sypilis finish ,SYPHILLIS,train
+SYPHILLIS__screening prompts__you experience fever in past week ,SYPHILLIS,train
+SYPHILLIS__screening prompts__you experience painless sores in past week ,SYPHILLIS,train
+SYPHILLIS__screening prompts__you experience rash on palms and soles in past week ,SYPHILLIS,train
+SYPHILLIS__screening prompts__you experience swollen lymph nodes  in past week ,SYPHILLIS,train
+TRICHURIASIS__Diagnostic prompts__Formalin ether concentration test for trichuriasis finish ,TRICHURIASIS,train
+TRICHURIASIS__Diagnostic prompts__PCR test for trichuriasis finish ,TRICHURIASIS,train
+TRICHURIASIS__Diagnostic prompts__Serology test for trichuriasis finish ,TRICHURIASIS,train
+TRICHURIASIS__Diagnostic prompts__stool microscopy test for trichuriasis finish ,TRICHURIASIS,train
+TRICHURIASIS__Screening prompts__you got anemia before ,TRICHURIASIS,train
+TRICHURIASIS__Screening prompts__you got weight loss before ,TRICHURIASIS,train
+TUBERCLOSIS__diagnostic prompts__Clinician requested chest x ray ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__You referred for chest xray test ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__chest xray done to check for TB ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__clinician finished request tuberclin  skin test ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__clinician requested sputum smear ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__gene expert done to check for tb,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__sputum culture done to check for tb,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__sputum smear done to check for tb ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__tuberculin skin test done to check for tb,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__you referred fpr gene expert test ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__you reffered for gen expert test ,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__you undergone chest x ray before,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__you undergone gene expert before,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__your sputum tested with gene expert,TUBERCLOSIS,train
+TUBERCLOSIS__diagnostic prompts__your sputum tested with sputum chest xray ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you experience blood in sputum frequently ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you experience chest pain frequently ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you experience night sweats frequently,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you experience persistent cough frequently,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you feel chest pain before ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you feel chest pain more in night ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you feel persistent cough more in night,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you got chest pain lasting more than 2 weeks,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you got night sweats lastinbg more than 2 weeks,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you got persistent cough before ,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you saw blood in sputum before,TUBERCLOSIS,train
+TUBERCLOSIS__screening prompts__you see not normal weight loss,TUBERCLOSIS,train
+TYPHOID__Diagnostic prompts__Typhidot test diagnose typhoid fever finish,TYPHOID,train
+TYPHOID__Diagnostic prompts__Widal test diagnose typhoid  fever finish ,TYPHOID,train
+TYPHOID__Diagnostic prompts__bone marrow culture diagnose typhoid fever finish ,TYPHOID,train
+TYPHOID__Screening prompts__you got abdominal pain before ,TYPHOID,train
+TYPHOID__Screening prompts__you got constipation before ,TYPHOID,train
+TYPHOID__Screening prompts__you got headache before ,TYPHOID,train
+TYPHOID__Screening prompts__you got prolonged fever before ,TYPHOID,train
+YELLOW FEVER__Diagnostic prompts__IGM antibody test confirm yellow fever finish ,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You experienced fever in past week ,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You experienced jaundice in past week ,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You experienced vomiting in past week,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You experienced yellow face in past week ,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You feel like vomiting in past week,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You got muscle pain before ,YELLOW FEVER,train
+YELLOW FEVER__Screening prompts__You got muscle pain before -1,YELLOW FEVER,train
+ASCARIASIS__Diagnostic prompts__STOOL Microscopy test  for ascariasis finish ,ASCARIASIS,val
+ASCARIASIS__Screening prompts__you got abdominal pain before,ASCARIASIS,val
+CHOLERA__Diagnostic prompts__PCR  diagnose cholera finish,CHOLERA,val
+CHOLERA__Diagnostic prompts__STOOL culture to   diagnose cholera finish,CHOLERA,val
+COVID__diagnostic prompts__You reffered for  nasopharyngeal swab test ,COVID,val
+COVID__diagnostic prompts__you taken rt-lamp before,COVID,val
+COVID__screening prompts__Anyone in your family got fever before,COVID,val
+COVID__screening prompts__anyone in your household got loss appetite before,COVID,val
+COVID__screening prompts__you currently suffering from shortness breath,COVID,val
+COVID__screening prompts__you have dry cough combined with breathing difficulty,COVID,val
+EBOLA VIRUS__Diagnostic prompts__Blood test done to diagnose ebola virus disease,EBOLA VIRUS,val
+EBOLA VIRUS__Diagnostic prompts__Pcr done to diagnose ebola virus disease,EBOLA VIRUS,val
+EBOLA VIRUS__Screening prompts__You experienced muscle pain before,EBOLA VIRUS,val
+ECTOPIC PREGNANCY__Screening prompts__you got dizziness in pregnancy,ECTOPIC PREGNANCY,val
+GONORRHEA__diagnostic prompts__Culture test to test gonorrhea finished ,GONORRHEA,val
+GONORRHEA__diagnostic prompts__Nucleic acid amplification test to test gonorrhea finished,GONORRHEA,val
+GONORRHEA__screening prompts__you experience pain in sex in past week ,GONORRHEA,val
+HEPATITIS B__Screening prompts__You experienced fatigue before,HEPATITIS B,val
+HEPATITIS B__Screening prompts__You experienced nausea before ,HEPATITIS B,val
+HEPATITIS C__Diagnostic promts__HCV ANTIBODY test done to check  for hepatitis C,HEPATITIS C,val
+HERPES SIMPLEX__Screening prompts__you experienced burning urination before ,HERPES SIMPLEX,val
+HERPES SIMPLEX__Screening prompts__you experienced flu like symptoms before ,HERPES SIMPLEX,val
+HIV__screening prompts__you experience weight loss before,HIV,val
+HOOKWORM INFECTION__Screening prompts__you got itchy feet before ,HOOKWORM INFECTION,val
+MALARIA__diagnostic prompts__Clinician finish pcr,MALARIA,val
+MALARIA__diagnostic prompts__Lab person finished PCR,MALARIA,val
+MALARIA__diagnostic prompts__Malaria rapid diagnostic test finished,MALARIA,val
+MALARIA__screening prompts__you experience headcahe before,MALARIA,val
+MALARIA__screening prompts__you experience joint pain before ,MALARIA,val
+MALARIA__screening prompts__you got headache past few days,MALARIA,val
+MOLLUSCUM CONTAGIUSUM__Diagnostic prompts__Clinical examination finish diagnose molluscum contagiusum,MOLLUSCUM CONTAGIUSUM,val
+MOLLUSCUM CONTAGIUSUM__Diagnostic prompts__microscopy finish diagnose molluscum contagiusum ,MOLLUSCUM CONTAGIUSUM,val
+PELVIC INFLAMMATORY DISEASE (PID)__Screening prompts__NAAT diagnose pelvic inflammatory disease finish ,PELVIC INFLAMMATORY DISEASE (PID),val
+PLACENTA PREVIA__Diagnostic prompts__abdominal ultrasound used assess fro placenta previa,PLACENTA PREVIA,val
+POSPARTUM HEMORRHAGE__Diagnostic prompts__Hemoglobin test used assess for postpartum hemorrhage,POSPARTUM HEMORRHAGE,val
+POSPARTUM HEMORRHAGE__Screening prompts__you experienced fatigue during pregnancy ,POSPARTUM HEMORRHAGE,val
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Diagnostic prompts__you undergo biopsy for human papiloma virus finish,PREECLAMPSIA,val
+PREECLAMPSIA__HUMAN PAPILOMA VIRUS__Diagnostic prompts__you undergo pap smear for human papilmoavirus finish,PREECLAMPSIA,val
+PREECLAMPSIA__Screening prompts__you got headache during pregnancy ,PREECLAMPSIA,val
+PRETERM  LABOR__Diagnostic prompts__pelvic exam used assess for preterm labor ,PRETERM  LABOR,val
+SCHISTOSOMIASIS__Screening prompts__you got blood in urine before ,SCHISTOSOMIASIS,val
+SCHISTOSOMIASIS__Screening prompts__you got fever before ,SCHISTOSOMIASIS,val
+SUBSTANCE USE DISORDER__Diagnostic prompts__audit finish for substance use disorders assessment,SUBSTANCE USE DISORDER,val
+SYPHILLIS__diagnostic prompts__TPHA test to test syphilis finish  ,SYPHILLIS,val
+SYPHILLIS__screening prompts__you experience pain in sex in past week ,SYPHILLIS,val
+TRICHURIASIS__Diagnostic prompts__Kato katz technique for trichuriasis finish ,TRICHURIASIS,val
+TRICHURIASIS__Screening prompts__you got abdominal cramps before ,TRICHURIASIS,val
+TUBERCLOSIS__diagnostic prompts__Your sputum tested using chest xray ,TUBERCLOSIS,val
+TUBERCLOSIS__diagnostic prompts__Your sputum tested with tuberclin skin test ,TUBERCLOSIS,val
+TUBERCLOSIS__diagnostic prompts__clinician requested sputum culture,TUBERCLOSIS,val
+TUBERCLOSIS__diagnostic prompts__you reffered for sputum smear test,TUBERCLOSIS,val
+TUBERCLOSIS__diagnostic prompts__you undergone sputum culture before ,TUBERCLOSIS,val
+TUBERCLOSIS__screening prompts__you saw blood in sputum more in night ,TUBERCLOSIS,val
+TYPHOID__Diagnostic prompts__blood culture diagnose typhoid fever finish,TYPHOID,val
+YELLOW FEVER__Diagnostic prompts__PCR confirm yellow fever finish,YELLOW FEVER,val
+YELLOW FEVER__Diagnostic prompts__Viral isolation confirm yellow fever finish ,YELLOW FEVER,val

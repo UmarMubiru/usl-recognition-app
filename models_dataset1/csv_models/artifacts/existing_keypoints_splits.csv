@@ -1,0 +1,91 @@
+sample_id,category,split
+0038,about,test
+0061,come,test
+0021,evening,test
+0057,forward,test
+0027,goodbye,test
+0074,have,test
+0003,how,test
+0025,hungry,test
+0032,learning,test
+0009,me,test
+0081,other,test
+0082,our,test
+0012,teach,test
+0054,work,test
+0020,afternoon,train
+0066,and,train
+0050,any tips,train
+0024,bad,train
+0031,book,train
+0068,but,train
+0011,can,train
+0069,children,train
+0022,day,train
+0070,different,train
+0053,dinner,train
+0029,directions,train
+0060,enter,train
+0071,family,train
+0072,follows,train
+0063,food,train
+0034,game,train
+0018,good,train
+0023,good,train
+0073,guardians,train
+0001,hello,train
+0014,help,train
+0076,here,train
+0015,how,train
+0046,interact,train
+0077,is,train
+0052,join us,train
+0030,looking,train
+0065,lunch,train
+0028,market,train
+0045,meet people,train
+0078,members,train
+0019,morning,train
+0056,moving,train
+0049,next,train
+0079,now,train
+0080,numbers,train
+0008,old,train
+0059,open the door,train
+0083,parents,train
+0047,planning,train
+0037,playing,train
+0016,please,train
+0058,please,train
+0017,repeat,train
+0036,rules,train
+0086,start,train
+0006,stay,train
+0055,team,train
+0013,thank you,train
+0042,to,train
+0064,to eat,train
+0043,travel,train
+0088,ugandan,train
+0089,users,train
+0048,visit,train
+0035,we,train
+0005,what,train
+0007,where,train
+0041,wish,train
+0044,world,train
+0051,would you like,train
+0002,you,train
+0067,as follows,val
+0062,cook,val
+0040,culture and tradition,val
+0075,hello,val
+0039,know,val
+0004,name,val
+0084,regions,val
+0010,sign language,val
+0085,sign language,val
+0033,teach me,val
+0026,thirsty,val
+0087,topic,val
+0090,ways,val

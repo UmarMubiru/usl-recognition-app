@@ -1,0 +1,123 @@
+{
+  "random_forest": {
+    "val_accuracy": 0.9107142857142857,
+    "val_macro_f1": 0.8818754578754578,
+    "test_accuracy": 0.8392857142857143,
+    "test_macro_f1": 0.7908544788544789
+  },
+  "logistic_regression": {
+    "val_accuracy": 0.8571428571428571,
+    "val_macro_f1": 0.8552087912087911,
+    "test_accuracy": 0.8571428571428571,
+    "test_macro_f1": 0.8053766233766234
+  },
+  "random_forest_hierarchical": {
+    "val_accuracy": 0.875,
+    "val_macro_f1": 0.8542564102564103,
+    "test_accuracy": 0.8392857142857143,
+    "test_macro_f1": 0.7552207792207791,
+    "val_coarse_accuracy": 0.8928571428571429,
+    "test_coarse_accuracy": 0.9107142857142857
+  },
+  "logistic_regression_hierarchical": {
+    "val_accuracy": 0.8392857142857143,
+    "val_macro_f1": 0.7689523809523809,
+    "test_accuracy": 0.75,
+    "test_macro_f1": 0.6732207792207793,
+    "val_coarse_accuracy": 0.8571428571428571,
+    "test_coarse_accuracy": 0.7857142857142857
+  },
+  "random_forest_best_params": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "class_weight": "balanced_subsample",
+    "criterion": "entropy",
+    "max_depth": 18,
+    "max_features": "log2",
+    "max_leaf_nodes": null,
+    "max_samples": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 2,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 1000,
+    "n_jobs": -1,
+    "oob_score": false,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "logistic_regression_best_params": {
+    "memory": null,
+    "steps": [
+      [
+        "scaler",
+        "StandardScaler()"
+      ],
+      [
+        "clf",
+        "LogisticRegression(C=np.float64(0.7847599703514611), class_weight='balanced',\n                   max_iter=5000, random_state=42)"
+      ]
+    ],
+    "transform_input": null,
+    "verbose": false,
+    "scaler": "StandardScaler()",
+    "clf": "LogisticRegression(C=np.float64(0.7847599703514611), class_weight='balanced',\n                   max_iter=5000, random_state=42)",
+    "scaler__copy": true,
+    "scaler__with_mean": true,
+    "scaler__with_std": true,
+    "clf__C": 0.7847599703514611,
+    "clf__class_weight": "balanced",
+    "clf__dual": false,
+    "clf__fit_intercept": true,
+    "clf__intercept_scaling": 1,
+    "clf__l1_ratio": 0.0,
+    "clf__max_iter": 5000,
+    "clf__n_jobs": null,
+    "clf__penalty": "deprecated",
+    "clf__random_state": 42,
+    "clf__solver": "lbfgs",
+    "clf__tol": 0.0001,
+    "clf__verbose": 0,
+    "clf__warm_start": false
+  },
+  "coarse_groups": [
+    "bacterial",
+    "maternal",
+    "other",
+    "parasitic",
+    "viral"
+  ],
+  "classes": [
+    "ASCARIASIS",
+    "CHOLERA",
+    "COVID",
+    "EBOLA VIRUS",
+    "ECTOPIC PREGNANCY",
+    "GONORRHEA",
+    "HEPATITIS B",
+    "HEPATITIS C",
+    "HERPES SIMPLEX",
+    "HIV",
+    "HOOKWORM INFECTION",
+    "MALARIA",
+    "MOLLUSCUM CONTAGIUSUM",
+    "PELVIC INFLAMMATORY DISEASE (PID)",
+    "PLACENTA PREVIA",
+    "POSPARTUM HEMORRHAGE",
+    "PREECLAMPSIA",
+    "PRETERM  LABOR",
+    "SCHISTOSOMIASIS",
+    "SUBSTANCE USE DISORDER",
+    "SYPHILLIS",
+    "TRICHURIASIS",
+    "TUBERCLOSIS",
+    "TYPHOID",
+    "YELLOW FEVER"
+  ],
+  "feature_count": 338,
+  "train_samples": 261,
+  "val_samples": 56,
+  "test_samples": 56
+}
