@@ -8,6 +8,10 @@ param(
     [string]$Description = "FastAPI service for Uganda Sign Language disease model inference",
     [string]$PythonPath = ".\.venv\Scripts\python.exe",
     [string]$ApiKey = "",
+    [string]$ModelArtifactPath = "",
+    [string]$FallbackModelArtifactPath = "",
+    [double]$FallbackConfidenceThreshold = 0.75,
+    [bool]$EnableFallback = $true,
     [string]$ApiHost = "0.0.0.0",
     [int]$Port = 8000
 )
@@ -52,9 +56,16 @@ switch ($Action) {
         }
 
         $psExe = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-        $binaryPath = "`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$launcher`" -PythonPath `"$pythonResolved`" -ApiHost `"$ApiHost`" -Port $Port"
+        $enableFallbackLiteral = if ($EnableFallback) { '$true' } else { '$false' }
+        $binaryPath = "`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$launcher`" -PythonPath `"$pythonResolved`" -ApiHost `"$ApiHost`" -Port $Port -FallbackConfidenceThreshold $FallbackConfidenceThreshold -EnableFallback $enableFallbackLiteral"
         if ($ApiKey -ne "") {
             $binaryPath += " -ApiKey `"$ApiKey`""
+        }
+        if ($ModelArtifactPath -ne "") {
+            $binaryPath += " -ModelArtifactPath `"$ModelArtifactPath`""
+        }
+        if ($FallbackModelArtifactPath -ne "") {
+            $binaryPath += " -FallbackModelArtifactPath `"$FallbackModelArtifactPath`""
         }
 
         & sc.exe create $ServiceName binPath= $binaryPath start= auto DisplayName= $DisplayName | Out-Host

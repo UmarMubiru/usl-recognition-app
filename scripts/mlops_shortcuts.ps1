@@ -7,6 +7,10 @@ param(
     [string]$ApiHost = "127.0.0.1",
     [int]$Port = 8000,
     [string]$ApiKey = "",
+    [string]$ModelArtifactPath = "",
+    [string]$FallbackModelArtifactPath = "",
+    [double]$FallbackConfidenceThreshold = 0.75,
+    [bool]$EnableFallback = $true,
     [string]$Metric = "test_accuracy",
     [string]$ServiceName = "USLDiseaseAPI"
 )
@@ -37,6 +41,14 @@ function Invoke-Serve {
     if ($ApiKey -ne "") {
         $env:API_KEY = $ApiKey
     }
+    if ($ModelArtifactPath -ne "") {
+        $env:MODEL_ARTIFACT_PATH = $ModelArtifactPath
+    }
+    if ($FallbackModelArtifactPath -ne "") {
+        $env:FALLBACK_MODEL_ARTIFACT_PATH = $FallbackModelArtifactPath
+    }
+    $env:FALLBACK_CONFIDENCE_THRESHOLD = [string]$FallbackConfidenceThreshold
+    $env:ENABLE_FALLBACK = if ($EnableFallback) { "true" } else { "false" }
     & $PythonPath -m uvicorn models_dataset1.deployment.api:app --host $ApiHost --port $Port
 }
 
@@ -104,6 +116,10 @@ function Invoke-ServiceAction {
         Action = $SvcAction
         ServiceName = $ServiceName
         PythonPath = $PythonPath
+        ModelArtifactPath = $ModelArtifactPath
+        FallbackModelArtifactPath = $FallbackModelArtifactPath
+        FallbackConfidenceThreshold = $FallbackConfidenceThreshold
+        EnableFallback = $EnableFallback
         ApiHost = $ApiHost
         Port = $Port
     }

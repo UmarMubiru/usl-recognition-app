@@ -12,8 +12,30 @@ from PIL import Image
 
 APP_DIR = Path(__file__).resolve().parent
 LOCAL_ARTIFACT = APP_DIR / "model.pkl"
-FALLBACK_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
-ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else FALLBACK_ARTIFACT)))
+DISTILLED_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "distilled_student.joblib"
+BEST_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
+
+
+def _parse_bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+DEFAULT_PRIMARY_ARTIFACT = (
+    DISTILLED_ARTIFACT
+    if DISTILLED_ARTIFACT.exists()
+    else (LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else BEST_ARTIFACT)
+)
+ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(DEFAULT_PRIMARY_ARTIFACT)))
+FALLBACK_ARTIFACT_PATH_RAW = os.getenv("FALLBACK_MODEL_ARTIFACT_PATH", "").strip()
+DEFAULT_FALLBACK_ARTIFACT = BEST_ARTIFACT if BEST_ARTIFACT.exists() else LOCAL_ARTIFACT
+FALLBACK_ARTIFACT_PATH = (
+    Path(FALLBACK_ARTIFACT_PATH_RAW) if FALLBACK_ARTIFACT_PATH_RAW else DEFAULT_FALLBACK_ARTIFACT
+)
+ENABLE_FALLBACK = _parse_bool_env("ENABLE_FALLBACK", True)
+FALLBACK_CONFIDENCE_THRESHOLD = float(os.getenv("FALLBACK_CONFIDENCE_THRESHOLD", "0.75"))
 
 
 @st.cache_resource
@@ -131,13 +153,18 @@ def _softmax(values: np.ndarray) -> np.ndarray:
     return exp_vals / denom
 
 
-def predict_with_artifact(
-    model,
-    classes: list[str],
-    feature_cols: list[str],
-    features: dict[str, float],
-    top_k: int,
-) -> tuple[str, float, list[tuple[str, float]], int, int]:
+def _normalize_probs(probs: np.ndarray, size: int) -> np.ndarray:
+    probs = np.array(probs, dtype=float).reshape(-1)
+    if probs.shape[0] != size:
+        return np.full(size, 1.0 / float(size), dtype=float)
+    probs = np.clip(probs, 0.0, np.inf)
+    total = float(np.sum(probs))
+    if total <= 0:
+        return np.full(size, 1.0 / float(size), dtype=float)
+    return probs / total
+
+
+def _predict_core(model, classes: list[str], feature_cols: list[str], features: dict[str, float]):
     missing_count = sum(1 for feat in feature_cols if feat not in features)
     unknown_count = sum(1 for feat in features if feat not in feature_cols)
     x_vec = np.array([float(features.get(feat, 0.0)) for feat in feature_cols], dtype=float).reshape(1, -1)
@@ -157,10 +184,84 @@ def predict_with_artifact(
         probs = np.zeros(len(classes), dtype=float)
         probs[pred_idx] = 1.0
 
+    probs = _normalize_probs(probs, len(classes))
+    return pred_idx, probs, missing_count, unknown_count
+
+
+def predict_with_artifact(
+    model,
+    classes: list[str],
+    feature_cols: list[str],
+    features: dict[str, float],
+    top_k: int,
+) -> tuple[str, float, list[tuple[str, float]], int, int]:
+    pred_idx, probs, missing_count, unknown_count = _predict_core(
+        model=model,
+        classes=classes,
+        feature_cols=feature_cols,
+        features=features,
+    )
+
     top_k = min(top_k, len(classes))
     top_idx = np.argsort(probs)[::-1][:top_k]
     ranked = [(classes[int(i)], float(probs[int(i)])) for i in top_idx]
     return classes[pred_idx], float(probs[pred_idx]), ranked, missing_count, unknown_count
+
+
+def predict_with_optional_fallback(
+    primary_bundle: dict[str, Any],
+    fallback_bundle: dict[str, Any] | None,
+    features: dict[str, float],
+    top_k: int,
+    threshold: float,
+) -> dict[str, Any]:
+    primary_label, primary_confidence, primary_ranked, missing_count, unknown_count = predict_with_artifact(
+        model=primary_bundle["model"],
+        classes=primary_bundle["classes"],
+        feature_cols=primary_bundle["feature_cols"],
+        features=features,
+        top_k=top_k,
+    )
+
+    result = {
+        "label": primary_label,
+        "confidence": primary_confidence,
+        "ranked": primary_ranked,
+        "missing_count": missing_count,
+        "unknown_count": unknown_count,
+        "model_name": primary_bundle["model_name"],
+        "primary_model_name": primary_bundle["model_name"],
+        "primary_confidence": primary_confidence,
+        "fallback_used": False,
+        "fallback_reason": None,
+        "fallback_model_name": fallback_bundle["model_name"] if fallback_bundle else None,
+    }
+
+    if fallback_bundle is None or primary_confidence >= threshold:
+        return result
+
+    try:
+        fb_label, fb_confidence, fb_ranked, _, _ = predict_with_artifact(
+            model=fallback_bundle["model"],
+            classes=fallback_bundle["classes"],
+            feature_cols=fallback_bundle["feature_cols"],
+            features=features,
+            top_k=top_k,
+        )
+        result.update(
+            {
+                "label": fb_label,
+                "confidence": fb_confidence,
+                "ranked": fb_ranked,
+                "model_name": fallback_bundle["model_name"],
+                "fallback_used": True,
+                "fallback_reason": f"primary confidence {primary_confidence:.1%} below {threshold:.1%}",
+            }
+        )
+    except Exception as exc:
+        st.warning(f"Fallback model failed, using primary model output. Details: {exc}")
+
+    return result
 
 
 def _read_uploaded_image(uploaded_file) -> np.ndarray:
@@ -230,15 +331,26 @@ def _extract_key_frames(video_bytes: bytes, video_name: str | None = None, max_f
 
 def _predict_on_frames(
     frames: list[np.ndarray],
-    model,
-    classes: list[str],
-    feature_cols: list[str],
+    primary_bundle: dict[str, Any],
+    fallback_bundle: dict[str, Any] | None,
     top_k: int,
-) -> tuple[str, float, list[tuple[str, float]], int, int]:
+) -> dict[str, Any]:
     """Predict on multiple frames and average the results."""
     if not frames:
         st.error("No frames extracted from video.")
-        return None, 0.0, [], 0, 0
+        return {
+            "label": None,
+            "confidence": 0.0,
+            "ranked": [],
+            "missing_count": 0,
+            "unknown_count": 0,
+            "model_name": primary_bundle["model_name"],
+            "primary_model_name": primary_bundle["model_name"],
+            "primary_confidence": 0.0,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "fallback_model_name": fallback_bundle["model_name"] if fallback_bundle else None,
+        }
     
     all_features_list = []
     for frame in frames:
@@ -251,15 +363,13 @@ def _predict_on_frames(
         avg_features[key] = float(np.mean([f[key] for f in all_features_list]))
     
     # Predict on averaged features
-    label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-        model=model,
-        classes=classes,
-        feature_cols=feature_cols,
+    return predict_with_optional_fallback(
+        primary_bundle=primary_bundle,
+        fallback_bundle=fallback_bundle,
         features=avg_features,
         top_k=top_k,
+        threshold=FALLBACK_CONFIDENCE_THRESHOLD,
     )
-    
-    return label, confidence, ranked, missing_count, unknown_count
 
 
 st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
@@ -545,6 +655,26 @@ model_name = str(artifact["model_name"])
 feature_cols = list(artifact["feature_cols"])
 classes = list(artifact["classes"])
 
+primary_bundle = {
+    "model": model,
+    "model_name": model_name,
+    "feature_cols": feature_cols,
+    "classes": classes,
+}
+
+fallback_bundle: dict[str, Any] | None = None
+if ENABLE_FALLBACK and FALLBACK_ARTIFACT_PATH.exists() and FALLBACK_ARTIFACT_PATH.resolve() != ARTIFACT_PATH.resolve():
+    try:
+        fb_artifact = load_artifact(FALLBACK_ARTIFACT_PATH)
+        fallback_bundle = {
+            "model": fb_artifact["model"],
+            "model_name": str(fb_artifact["model_name"]),
+            "feature_cols": list(fb_artifact["feature_cols"]),
+            "classes": list(fb_artifact["classes"]),
+        }
+    except Exception as exc:
+        st.warning(f"Fallback model could not be loaded: {exc}")
+
 st.markdown("---")
 
 with st.container():
@@ -554,7 +684,7 @@ with st.container():
     with col2:
         st.metric("Feature Count", len(feature_cols))
     with col3:
-        st.metric("Disease Classes", len(classes))
+        st.metric("Fallback", "ON" if fallback_bundle is not None else "OFF")
 
 st.markdown("---")
 
@@ -598,14 +728,21 @@ if "Upload Image" in input_mode:
         if st.button("Predict", key="predict_image"):
             with st.spinner("Extracting 338-compatible features from image and predicting..."):
                 features = _make_338_proxy_features(image_np)
-                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-                    model=model,
-                    classes=classes,
-                    feature_cols=feature_cols,
+                prediction = predict_with_optional_fallback(
+                    primary_bundle=primary_bundle,
+                    fallback_bundle=fallback_bundle,
                     features=features,
                     top_k=top_k,
+                    threshold=FALLBACK_CONFIDENCE_THRESHOLD,
                 )
+                label = prediction["label"]
+                confidence = prediction["confidence"]
+                ranked = prediction["ranked"]
+                missing_count = prediction["missing_count"]
+                unknown_count = prediction["unknown_count"]
             st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            if prediction["fallback_used"]:
+                st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
             
             with st.container():
                 st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
@@ -629,14 +766,21 @@ if "Webcam Snapshot" in input_mode:
         if st.button("Predict", key="predict_camera"):
             with st.spinner("Extracting 338-compatible features from snapshot and predicting..."):
                 features = _make_338_proxy_features(image_np)
-                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-                    model=model,
-                    classes=classes,
-                    feature_cols=feature_cols,
+                prediction = predict_with_optional_fallback(
+                    primary_bundle=primary_bundle,
+                    fallback_bundle=fallback_bundle,
                     features=features,
                     top_k=top_k,
+                    threshold=FALLBACK_CONFIDENCE_THRESHOLD,
                 )
+                label = prediction["label"]
+                confidence = prediction["confidence"]
+                ranked = prediction["ranked"]
+                missing_count = prediction["missing_count"]
+                unknown_count = prediction["unknown_count"]
             st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+            if prediction["fallback_used"]:
+                st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
             
             with st.container():
                 st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
@@ -670,16 +814,22 @@ if "Video File" in input_mode:
             
             if st.button("Predict on Video", key="predict_video"):
                 with st.spinner("Extracting 338-compatible features from key frames and predicting..."):
-                    label, confidence, ranked, missing_count, unknown_count = _predict_on_frames(
+                    prediction = _predict_on_frames(
                         frames=frames,
-                        model=model,
-                        classes=classes,
-                        feature_cols=feature_cols,
+                        primary_bundle=primary_bundle,
+                        fallback_bundle=fallback_bundle,
                         top_k=top_k,
                     )
+                    label = prediction["label"]
+                    confidence = prediction["confidence"]
+                    ranked = prediction["ranked"]
+                    missing_count = prediction["missing_count"]
+                    unknown_count = prediction["unknown_count"]
                 
                 if label is not None:
                     st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+                    if prediction["fallback_used"]:
+                        st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
                     
                     with st.container():
                         st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
@@ -700,9 +850,10 @@ with st.container():
     st.markdown("""
         <div class="section-panel" style="text-align: center; margin-top: 2em; padding: 1.5em; background: #ffffff;">
         <h4><i class="fa-solid fa-circle-info" style="margin-right:0.45rem;color:#123b84"></i>System Information</h4>
-        <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
+        <p><strong>Primary Model:</strong> {model_name.replace('_', ' ').title()}</p>
+        <p><strong>Fallback Model:</strong> {(fallback_bundle['model_name'].replace('_', ' ').title() if fallback_bundle else 'Disabled')}</p>
+        <p><strong>Fallback Threshold:</strong> {FALLBACK_CONFIDENCE_THRESHOLD:.0%}</p>
         <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
-        <p><strong>Test Accuracy:</strong> 87.5%</p>
         <p><strong>Note:</strong> Deployed cloud mode uses image, webcam, and video proxy features for compatibility.</p>
         <p style="font-size: 0.9em; color: #888;">
             <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>
