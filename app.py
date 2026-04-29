@@ -5,11 +5,17 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import cv2
 import joblib
 import numpy as np
 import streamlit as st
 from PIL import Image
+
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except Exception:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 # Import the real video feature extraction from the training pipeline
 try:
@@ -444,6 +450,10 @@ def _record_webcam_video(duration_sec: int = 3, fps: int = 30, frame_width: int 
     Record video from webcam for specified duration and save to temporary file.
     Uses OpenCV to capture frames and encode as MP4.
     """
+    if not CV2_AVAILABLE or cv2 is None:
+        st.error("Webcam recording requires OpenCV runtime support, which is unavailable in this environment.")
+        return None
+
     try:
         import time
         
