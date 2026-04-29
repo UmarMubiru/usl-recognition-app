@@ -5,17 +5,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import cv2
 import joblib
 import numpy as np
 import streamlit as st
 from PIL import Image
-
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except Exception:
-    cv2 = None
-    CV2_AVAILABLE = False
 
 # Import the real video feature extraction from the training pipeline
 try:
@@ -286,6 +280,109 @@ def predict_with_optional_fallback(
     return result
 
 
+def _unique_labels(labels: list[str]) -> list[str]:
+    return list(dict.fromkeys(labels))
+
+
+def _clamp_percent(value: float) -> float:
+    return float(max(0.0, min(100.0, value)))
+
+
+def _target_match_quality(target_sign: str, predicted_label: str | None, ranked: list[tuple[str, float]]) -> float:
+    if not target_sign:
+        return 0.0
+    if predicted_label == target_sign:
+        return 100.0
+
+    for idx, (candidate, _) in enumerate(ranked[:5], start=1):
+        if candidate == target_sign:
+            return max(30.0, 90.0 - (idx - 1) * 15.0)
+
+    return 0.0
+
+
+def _motion_consistency_score(ranked: list[tuple[str, float]], confidence: float, missing_count: int, unknown_count: int) -> float:
+    if ranked:
+        top1 = float(ranked[0][1])
+        top2 = float(ranked[1][1]) if len(ranked) > 1 else 0.0
+    else:
+        top1 = confidence
+        top2 = 0.0
+
+    margin = max(0.0, top1 - top2)
+    score = 30.0 + (top1 * 55.0) + (margin * 120.0)
+    score -= min(18.0, (missing_count * 0.05) + (unknown_count * 0.1))
+    return _clamp_percent(score)
+
+
+def _completeness_score(feature_count: int, missing_count: int, unknown_count: int) -> float:
+    if feature_count <= 0:
+        return 0.0
+
+    score = 100.0 * (1.0 - (missing_count / feature_count))
+    score -= min(10.0, unknown_count * 0.1)
+    return _clamp_percent(score)
+
+
+def score_practice_attempt(
+    target_sign: str | None,
+    prediction: dict[str, Any],
+    feature_count: int,
+) -> dict[str, Any] | None:
+    if not target_sign:
+        return None
+
+    predicted_label = prediction.get("label")
+    confidence = float(prediction.get("confidence", 0.0))
+    ranked = list(prediction.get("ranked", []))
+    missing_count = int(prediction.get("missing_count", 0))
+    unknown_count = int(prediction.get("unknown_count", 0))
+
+    confidence_score = confidence * 100.0
+    target_quality = _target_match_quality(target_sign, predicted_label, ranked)
+    motion_consistency = _motion_consistency_score(ranked, confidence, missing_count, unknown_count)
+    completeness = _completeness_score(feature_count, missing_count, unknown_count)
+
+    score = round(
+        (0.40 * confidence_score)
+        + (0.30 * target_quality)
+        + (0.20 * motion_consistency)
+        + (0.10 * completeness)
+    )
+    score = int(_clamp_percent(score))
+
+    if score >= 85:
+        assessment = "Strong attempt. The sign is close to the target and the execution looks stable."
+        tip = "Keep the same timing and hand path, then repeat for consistency."
+    elif score >= 70:
+        assessment = "Good attempt. The sign is mostly correct, but there is still room to tighten execution."
+        tip = "Refine handshape and end position, then repeat a slower practice run."
+    elif score >= 50:
+        assessment = "Partial match. The learner is on the right track, but the movement needs clearer structure."
+        tip = "Slow the sign down, keep the camera steady, and focus on clean motion."
+    else:
+        assessment = "Needs more practice. The performed sign is still far from the selected target."
+        tip = "Repeat the target sign with clearer framing and more deliberate motion."
+
+    if predicted_label == target_sign:
+        progress_note = f"Target matched: {target_sign}. Repeat it to build consistency."
+    elif target_quality > 0:
+        progress_note = f"Close to {target_sign}. The current attempt is near the intended lesson."
+    else:
+        progress_note = f"Predicted as {predicted_label}. Revisit {target_sign} and slow the movement down."
+
+    return {
+        "score": score,
+        "confidence_score": round(confidence_score, 1),
+        "target_quality": round(target_quality, 1),
+        "motion_consistency": round(motion_consistency, 1),
+        "completeness": round(completeness, 1),
+        "assessment": assessment,
+        "tip": tip,
+        "progress_note": progress_note,
+    }
+
+
 def _read_uploaded_image(uploaded_file) -> np.ndarray:
     image = Image.open(uploaded_file).convert("RGB")
     return np.asarray(image, dtype=np.uint8)
@@ -450,10 +547,6 @@ def _record_webcam_video(duration_sec: int = 3, fps: int = 30, frame_width: int 
     Record video from webcam for specified duration and save to temporary file.
     Uses OpenCV to capture frames and encode as MP4.
     """
-    if not CV2_AVAILABLE or cv2 is None:
-        st.error("Webcam recording requires OpenCV runtime support, which is unavailable in this environment.")
-        return None
-
     try:
         import time
         
@@ -799,6 +892,8 @@ model = artifact["model"]
 model_name = str(artifact["model_name"])
 feature_cols = list(artifact["feature_cols"])
 classes = list(artifact["classes"])
+target_sign_options = _unique_labels(classes)
+default_target_index = next((idx for idx, label in enumerate(target_sign_options) if label.lower() == "malaria"), 0)
 
 primary_bundle = {
     "model": model,
@@ -841,6 +936,31 @@ with col1:
     top_k = st.slider("Show Top Predictions", min_value=1, max_value=10, value=3, help="Number of top predictions to display")
 with col2:
     st.info("Tip: Use clear hand framing and good lighting for more stable predictions.")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("---")
+st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-graduation-cap fa-icon'></i>Practice Flow</div>", unsafe_allow_html=True)
+
+practice_mode = st.selectbox(
+    "Practice Mode",
+    ["Recognition only", "Guided practice"],
+    index=1,
+    help="Recognition only shows the predicted sign; guided practice also computes a score out of 100.",
+)
+
+target_sign = None
+if practice_mode == "Guided practice":
+    target_sign = st.selectbox(
+        "Target Sign",
+        target_sign_options,
+        index=default_target_index,
+        help="Choose the sign the learner is supposed to perform before scoring.",
+    )
+    st.caption("Scoring combines recognition confidence, target match quality, motion consistency, and feature completeness.")
+else:
+    st.info("Recognition only mode: the app will identify the sign without producing a score.")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -894,6 +1014,32 @@ if "Webcam Snapshot" in input_mode:
                             st.info(f"📊 **Features:** training pipeline (cv2+MediaPipe)")
                             if prediction["fallback_used"]:
                                 st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
+
+                            practice_assessment = score_practice_attempt(target_sign, prediction, len(feature_cols))
+                            if practice_assessment is not None:
+                                st.markdown(
+                                    f'''
+                                    <div class="section-panel" style="border: 2px solid #123b84; background: linear-gradient(135deg, #f7fbff 0%, #eef6ff 100%);">
+                                        <div class="section-title"><i class="fa-solid fa-chart-line fa-icon"></i>Score Card</div>
+                                        <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem;">
+                                            <div class="prediction-item"><strong>Score</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['score']}/100</span></div>
+                                            <div class="prediction-item"><strong>Target</strong> <span style="float:right;color:#123b84;font-weight:bold">{target_sign}</span></div>
+                                            <div class="prediction-item"><strong>Confidence</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['confidence_score']:.1f}/100</span></div>
+                                            <div class="prediction-item"><strong>Target Match</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['target_quality']:.1f}/100</span></div>
+                                            <div class="prediction-item"><strong>Motion Consistency</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['motion_consistency']:.1f}/100</span></div>
+                                            <div class="prediction-item"><strong>Completeness</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['completeness']:.1f}/100</span></div>
+                                        </div>
+                                        <div style="margin-top: 0.9rem; padding: 0.9rem 1rem; background: #ffffff; border-left: 4px solid #123b84; border-radius: 0.6rem;">
+                                            <p style="margin: 0 0 0.4rem 0; font-weight: 700; color: #123b84;">Brief Assessment</p>
+                                            <p style="margin: 0 0 0.45rem 0;">{practice_assessment['assessment']}</p>
+                                            <p style="margin: 0; color: #35557a;"><strong>Progress Note:</strong> {practice_assessment['progress_note']}</p>
+                                            <p style="margin: 0.45rem 0 0 0; color: #35557a;"><strong>Tip:</strong> {practice_assessment['tip']}</p>
+                                        </div>
+                                    </div>
+                                    '''
+                                    ,
+                                    unsafe_allow_html=True,
+                                )
                             
                             with st.container():
                                 st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
@@ -981,6 +1127,32 @@ if "Video File" in input_mode:
                     st.info(f"📊 **Features:** {feature_source}")
                     if prediction["fallback_used"]:
                         st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
+
+                    practice_assessment = score_practice_attempt(target_sign, prediction, len(feature_cols))
+                    if practice_assessment is not None:
+                        st.markdown(
+                            f'''
+                            <div class="section-panel" style="border: 2px solid #123b84; background: linear-gradient(135deg, #f7fbff 0%, #eef6ff 100%);">
+                                <div class="section-title"><i class="fa-solid fa-chart-line fa-icon"></i>Score Card</div>
+                                <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 0.75rem;">
+                                    <div class="prediction-item"><strong>Score</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['score']}/100</span></div>
+                                    <div class="prediction-item"><strong>Target</strong> <span style="float:right;color:#123b84;font-weight:bold">{target_sign}</span></div>
+                                    <div class="prediction-item"><strong>Confidence</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['confidence_score']:.1f}/100</span></div>
+                                    <div class="prediction-item"><strong>Target Match</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['target_quality']:.1f}/100</span></div>
+                                    <div class="prediction-item"><strong>Motion Consistency</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['motion_consistency']:.1f}/100</span></div>
+                                    <div class="prediction-item"><strong>Completeness</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['completeness']:.1f}/100</span></div>
+                                </div>
+                                <div style="margin-top: 0.9rem; padding: 0.9rem 1rem; background: #ffffff; border-left: 4px solid #123b84; border-radius: 0.6rem;">
+                                    <p style="margin: 0 0 0.4rem 0; font-weight: 700; color: #123b84;">Brief Assessment</p>
+                                    <p style="margin: 0 0 0.45rem 0;">{practice_assessment['assessment']}</p>
+                                    <p style="margin: 0; color: #35557a;"><strong>Progress Note:</strong> {practice_assessment['progress_note']}</p>
+                                    <p style="margin: 0.45rem 0 0 0; color: #35557a;"><strong>Tip:</strong> {practice_assessment['tip']}</p>
+                                </div>
+                            </div>
+                            '''
+                            ,
+                            unsafe_allow_html=True,
+                        )
                     
                     with st.container():
                         st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
