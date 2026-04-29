@@ -342,6 +342,7 @@ def score_practice_attempt(
     target_quality = _target_match_quality(target_sign, predicted_label, ranked)
     motion_consistency = _motion_consistency_score(ranked, confidence, missing_count, unknown_count)
     completeness = _completeness_score(feature_count, missing_count, unknown_count)
+    timing_quality = _clamp_percent((confidence_score * 0.65) + (motion_consistency * 0.35))
 
     score = round(
         (0.40 * confidence_score)
@@ -377,6 +378,13 @@ def score_practice_attempt(
         "target_quality": round(target_quality, 1),
         "motion_consistency": round(motion_consistency, 1),
         "completeness": round(completeness, 1),
+        "timing_quality": round(timing_quality, 1),
+        "breakdown": {
+            "Handshape / target match": round(target_quality, 1),
+            "Movement consistency": round(motion_consistency, 1),
+            "Timing stability": round(timing_quality, 1),
+            "Visibility / completeness": round(completeness, 1),
+        },
         "assessment": assessment,
         "tip": tip,
         "progress_note": progress_note,
@@ -1029,6 +1037,15 @@ if "Webcam Snapshot" in input_mode:
                                             <div class="prediction-item"><strong>Motion Consistency</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['motion_consistency']:.1f}/100</span></div>
                                             <div class="prediction-item"><strong>Completeness</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['completeness']:.1f}/100</span></div>
                                         </div>
+                                        <div style="margin-top: 0.9rem; padding: 0.85rem 1rem; background: #f8fbff; border: 1px solid #d8e4f4; border-radius: 0.6rem;">
+                                            <p style="margin: 0 0 0.55rem 0; font-weight: 700; color: #123b84;">Criterion Breakdown</p>
+                                            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem;">
+                                                <div class="prediction-item" style="margin:0;"><strong>Handshape / match</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Handshape / target match']:.1f}/100</span></div>
+                                                <div class="prediction-item" style="margin:0;"><strong>Movement</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Movement consistency']:.1f}/100</span></div>
+                                                <div class="prediction-item" style="margin:0;"><strong>Timing</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Timing stability']:.1f}/100</span></div>
+                                                <div class="prediction-item" style="margin:0;"><strong>Visibility</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Visibility / completeness']:.1f}/100</span></div>
+                                            </div>
+                                        </div>
                                         <div style="margin-top: 0.9rem; padding: 0.9rem 1rem; background: #ffffff; border-left: 4px solid #123b84; border-radius: 0.6rem;">
                                             <p style="margin: 0 0 0.4rem 0; font-weight: 700; color: #123b84;">Brief Assessment</p>
                                             <p style="margin: 0 0 0.45rem 0;">{practice_assessment['assessment']}</p>
@@ -1141,6 +1158,15 @@ if "Video File" in input_mode:
                                     <div class="prediction-item"><strong>Target Match</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['target_quality']:.1f}/100</span></div>
                                     <div class="prediction-item"><strong>Motion Consistency</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['motion_consistency']:.1f}/100</span></div>
                                     <div class="prediction-item"><strong>Completeness</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['completeness']:.1f}/100</span></div>
+                                </div>
+                                <div style="margin-top: 0.9rem; padding: 0.85rem 1rem; background: #f8fbff; border: 1px solid #d8e4f4; border-radius: 0.6rem;">
+                                    <p style="margin: 0 0 0.55rem 0; font-weight: 700; color: #123b84;">Criterion Breakdown</p>
+                                    <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem;">
+                                        <div class="prediction-item" style="margin:0;"><strong>Handshape / match</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Handshape / target match']:.1f}/100</span></div>
+                                        <div class="prediction-item" style="margin:0;"><strong>Movement</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Movement consistency']:.1f}/100</span></div>
+                                        <div class="prediction-item" style="margin:0;"><strong>Timing</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Timing stability']:.1f}/100</span></div>
+                                        <div class="prediction-item" style="margin:0;"><strong>Visibility</strong> <span style="float:right;color:#123b84;font-weight:bold">{practice_assessment['breakdown']['Visibility / completeness']:.1f}/100</span></div>
+                                    </div>
                                 </div>
                                 <div style="margin-top: 0.9rem; padding: 0.9rem 1rem; background: #ffffff; border-left: 4px solid #123b84; border-radius: 0.6rem;">
                                     <p style="margin: 0 0 0.4rem 0; font-weight: 700; color: #123b84;">Brief Assessment</p>
