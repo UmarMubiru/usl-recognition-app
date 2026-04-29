@@ -517,7 +517,7 @@ def _record_webcam_video(duration_sec: int = 3, fps: int = 30, frame_width: int 
         return None
 
 
-st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Uganda Sign Language Instructor", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
@@ -785,7 +785,7 @@ st.markdown("""
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    st.markdown('<div class="header-title"><i class="fa-solid fa-hands fa-icon"></i>Uganda Sign Language Recognition</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-title"><i class="fa-solid fa-hands fa-icon"></i>Uganda Sign Language Instructor</div>', unsafe_allow_html=True)
     st.markdown('<div class="header-subtitle">AI-Powered Disease Sign Classification System</div>', unsafe_allow_html=True)
 
 try:
