@@ -5,15 +5,53 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import cv2
 import joblib
 import numpy as np
 import streamlit as st
 from PIL import Image
 
+# Import the real video feature extraction from the training pipeline
+try:
+    # Add the models_dataset1 path for imports
+    MODELS_DATASET1_PATH = Path(__file__).resolve().parent.parent / "models_dataset1" / "csv_models"
+    if MODELS_DATASET1_PATH.exists():
+        import sys
+        sys.path.insert(0, str(MODELS_DATASET1_PATH))
+        from prepare_csv_features import video_metadata, _HOG_DIM
+        REAL_FEATURE_EXTRACTION_AVAILABLE = True
+    else:
+        REAL_FEATURE_EXTRACTION_AVAILABLE = False
+except Exception as e:
+    st.warning(f"Real video feature extraction unavailable: {e}")
+    REAL_FEATURE_EXTRACTION_AVAILABLE = False
+
 APP_DIR = Path(__file__).resolve().parent
 LOCAL_ARTIFACT = APP_DIR / "model.pkl"
-FALLBACK_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
-ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else FALLBACK_ARTIFACT)))
+DISTILLED_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "distilled_student.joblib"
+BEST_ARTIFACT = APP_DIR.parent / "models_dataset1" / "csv_models" / "artifacts" / "best_model.joblib"
+
+
+def _parse_bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+DEFAULT_PRIMARY_ARTIFACT = (
+    DISTILLED_ARTIFACT
+    if DISTILLED_ARTIFACT.exists()
+    else (LOCAL_ARTIFACT if LOCAL_ARTIFACT.exists() else BEST_ARTIFACT)
+)
+ARTIFACT_PATH = Path(os.getenv("MODEL_ARTIFACT_PATH", str(DEFAULT_PRIMARY_ARTIFACT)))
+FALLBACK_ARTIFACT_PATH_RAW = os.getenv("FALLBACK_MODEL_ARTIFACT_PATH", "").strip()
+DEFAULT_FALLBACK_ARTIFACT = BEST_ARTIFACT if BEST_ARTIFACT.exists() else LOCAL_ARTIFACT
+FALLBACK_ARTIFACT_PATH = (
+    Path(FALLBACK_ARTIFACT_PATH_RAW) if FALLBACK_ARTIFACT_PATH_RAW else DEFAULT_FALLBACK_ARTIFACT
+)
+ENABLE_FALLBACK = _parse_bool_env("ENABLE_FALLBACK", True)
+FALLBACK_CONFIDENCE_THRESHOLD = float(os.getenv("FALLBACK_CONFIDENCE_THRESHOLD", "0.75"))
 
 
 @st.cache_resource
@@ -131,13 +169,18 @@ def _softmax(values: np.ndarray) -> np.ndarray:
     return exp_vals / denom
 
 
-def predict_with_artifact(
-    model,
-    classes: list[str],
-    feature_cols: list[str],
-    features: dict[str, float],
-    top_k: int,
-) -> tuple[str, float, list[tuple[str, float]], int, int]:
+def _normalize_probs(probs: np.ndarray, size: int) -> np.ndarray:
+    probs = np.array(probs, dtype=float).reshape(-1)
+    if probs.shape[0] != size:
+        return np.full(size, 1.0 / float(size), dtype=float)
+    probs = np.clip(probs, 0.0, np.inf)
+    total = float(np.sum(probs))
+    if total <= 0:
+        return np.full(size, 1.0 / float(size), dtype=float)
+    return probs / total
+
+
+def _predict_core(model, classes: list[str], feature_cols: list[str], features: dict[str, float]):
     missing_count = sum(1 for feat in feature_cols if feat not in features)
     unknown_count = sum(1 for feat in features if feat not in feature_cols)
     x_vec = np.array([float(features.get(feat, 0.0)) for feat in feature_cols], dtype=float).reshape(1, -1)
@@ -157,10 +200,84 @@ def predict_with_artifact(
         probs = np.zeros(len(classes), dtype=float)
         probs[pred_idx] = 1.0
 
+    probs = _normalize_probs(probs, len(classes))
+    return pred_idx, probs, missing_count, unknown_count
+
+
+def predict_with_artifact(
+    model,
+    classes: list[str],
+    feature_cols: list[str],
+    features: dict[str, float],
+    top_k: int,
+) -> tuple[str, float, list[tuple[str, float]], int, int]:
+    pred_idx, probs, missing_count, unknown_count = _predict_core(
+        model=model,
+        classes=classes,
+        feature_cols=feature_cols,
+        features=features,
+    )
+
     top_k = min(top_k, len(classes))
     top_idx = np.argsort(probs)[::-1][:top_k]
     ranked = [(classes[int(i)], float(probs[int(i)])) for i in top_idx]
     return classes[pred_idx], float(probs[pred_idx]), ranked, missing_count, unknown_count
+
+
+def predict_with_optional_fallback(
+    primary_bundle: dict[str, Any],
+    fallback_bundle: dict[str, Any] | None,
+    features: dict[str, float],
+    top_k: int,
+    threshold: float,
+) -> dict[str, Any]:
+    primary_label, primary_confidence, primary_ranked, missing_count, unknown_count = predict_with_artifact(
+        model=primary_bundle["model"],
+        classes=primary_bundle["classes"],
+        feature_cols=primary_bundle["feature_cols"],
+        features=features,
+        top_k=top_k,
+    )
+
+    result = {
+        "label": primary_label,
+        "confidence": primary_confidence,
+        "ranked": primary_ranked,
+        "missing_count": missing_count,
+        "unknown_count": unknown_count,
+        "model_name": primary_bundle["model_name"],
+        "primary_model_name": primary_bundle["model_name"],
+        "primary_confidence": primary_confidence,
+        "fallback_used": False,
+        "fallback_reason": None,
+        "fallback_model_name": fallback_bundle["model_name"] if fallback_bundle else None,
+    }
+
+    if fallback_bundle is None or primary_confidence >= threshold:
+        return result
+
+    try:
+        fb_label, fb_confidence, fb_ranked, _, _ = predict_with_artifact(
+            model=fallback_bundle["model"],
+            classes=fallback_bundle["classes"],
+            feature_cols=fallback_bundle["feature_cols"],
+            features=features,
+            top_k=top_k,
+        )
+        result.update(
+            {
+                "label": fb_label,
+                "confidence": fb_confidence,
+                "ranked": fb_ranked,
+                "model_name": fallback_bundle["model_name"],
+                "fallback_used": True,
+                "fallback_reason": f"primary confidence {primary_confidence:.1%} below {threshold:.1%}",
+            }
+        )
+    except Exception as exc:
+        st.warning(f"Fallback model failed, using primary model output. Details: {exc}")
+
+    return result
 
 
 def _read_uploaded_image(uploaded_file) -> np.ndarray:
@@ -228,17 +345,44 @@ def _extract_key_frames(video_bytes: bytes, video_name: str | None = None, max_f
                 pass
 
 
+def _extract_features_from_video_file(video_path: str | Path) -> dict[str, float] | None:
+    """
+    Extract 338-dimensional features from a video file using the real training pipeline.
+    This ensures deployed predictions match training feature space.
+    """
+    if not REAL_FEATURE_EXTRACTION_AVAILABLE:
+        return None
+    
+    try:
+        features = video_metadata(Path(video_path))
+        return features
+    except Exception as e:
+        st.warning(f"Real feature extraction failed: {e}. Falling back to proxy features.")
+        return None
+
+
 def _predict_on_frames(
     frames: list[np.ndarray],
-    model,
-    classes: list[str],
-    feature_cols: list[str],
+    primary_bundle: dict[str, Any],
+    fallback_bundle: dict[str, Any] | None,
     top_k: int,
-) -> tuple[str, float, list[tuple[str, float]], int, int]:
+) -> dict[str, Any]:
     """Predict on multiple frames and average the results."""
     if not frames:
         st.error("No frames extracted from video.")
-        return None, 0.0, [], 0, 0
+        return {
+            "label": None,
+            "confidence": 0.0,
+            "ranked": [],
+            "missing_count": 0,
+            "unknown_count": 0,
+            "model_name": primary_bundle["model_name"],
+            "primary_model_name": primary_bundle["model_name"],
+            "primary_confidence": 0.0,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "fallback_model_name": fallback_bundle["model_name"] if fallback_bundle else None,
+        }
     
     all_features_list = []
     for frame in frames:
@@ -251,15 +395,116 @@ def _predict_on_frames(
         avg_features[key] = float(np.mean([f[key] for f in all_features_list]))
     
     # Predict on averaged features
-    label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-        model=model,
-        classes=classes,
-        feature_cols=feature_cols,
+    return predict_with_optional_fallback(
+        primary_bundle=primary_bundle,
+        fallback_bundle=fallback_bundle,
         features=avg_features,
         top_k=top_k,
+        threshold=FALLBACK_CONFIDENCE_THRESHOLD,
     )
+
+
+def _predict_on_real_video_file(
+    video_path: str | Path,
+    primary_bundle: dict[str, Any],
+    fallback_bundle: dict[str, Any] | None,
+    top_k: int,
+) -> dict[str, Any]:
+    """Predict using real video feature extraction from the training pipeline."""
+    features = _extract_features_from_video_file(video_path)
     
-    return label, confidence, ranked, missing_count, unknown_count
+    if features is None:
+        st.error("Could not extract features from video using training pipeline.")
+        return {
+            "label": None,
+            "confidence": 0.0,
+            "ranked": [],
+            "missing_count": 0,
+            "unknown_count": 0,
+            "model_name": primary_bundle["model_name"],
+            "primary_model_name": primary_bundle["model_name"],
+            "primary_confidence": 0.0,
+            "fallback_used": False,
+            "fallback_reason": None,
+            "fallback_model_name": fallback_bundle["model_name"] if fallback_bundle else None,
+        }
+    
+    # Predict on the real extracted features
+    return predict_with_optional_fallback(
+        primary_bundle=primary_bundle,
+        fallback_bundle=fallback_bundle,
+        features=features,
+        top_k=top_k,
+        threshold=FALLBACK_CONFIDENCE_THRESHOLD,
+    )
+
+
+def _record_webcam_video(duration_sec: int = 3, fps: int = 30, frame_width: int = 640, frame_height: int = 480) -> str | None:
+    """
+    Record video from webcam for specified duration and save to temporary file.
+    Uses OpenCV to capture frames and encode as MP4.
+    """
+    try:
+        import time
+        
+        # Initialize webcam
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            st.error("Could not access webcam. Please check permissions.")
+            return None
+        
+        # Set camera resolution
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
+        cap.set(cv2.CAP_PROP_FPS, fps)
+        
+        # Create temporary video file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        # Define codec and create VideoWriter
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        out = cv2.VideoWriter(temp_path, fourcc, fps, (frame_width, frame_height))
+        
+        frames_captured = 0
+        start_time = time.time()
+        placeholder = st.empty()
+        
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed >= duration_sec:
+                break
+            
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # Resize frame if needed
+            frame = cv2.resize(frame, (frame_width, frame_height))
+            
+            # Write frame
+            out.write(frame)
+            frames_captured += 1
+            
+            # Show countdown
+            remaining = duration_sec - elapsed
+            placeholder.metric("Recording", f"{remaining:.1f}s", f"{frames_captured} frames")
+        
+        cap.release()
+        out.release()
+        placeholder.empty()
+        
+        if frames_captured < 10:
+            st.warning(f"⚠️ Only captured {frames_captured} frames. Recording may be incomplete.")
+            return None
+        
+        st.success(f"✓ Recorded {frames_captured} frames in {duration_sec}s")
+        return temp_path
+    
+    except Exception as e:
+        st.error(f"Webcam recording failed: {e}")
+        return None
 
 
 st.set_page_config(page_title="Uganda Sign Language Recognition", layout="wide", initial_sidebar_state="expanded")
@@ -545,6 +790,26 @@ model_name = str(artifact["model_name"])
 feature_cols = list(artifact["feature_cols"])
 classes = list(artifact["classes"])
 
+primary_bundle = {
+    "model": model,
+    "model_name": model_name,
+    "feature_cols": feature_cols,
+    "classes": classes,
+}
+
+fallback_bundle: dict[str, Any] | None = None
+if ENABLE_FALLBACK and FALLBACK_ARTIFACT_PATH.exists() and FALLBACK_ARTIFACT_PATH.resolve() != ARTIFACT_PATH.resolve():
+    try:
+        fb_artifact = load_artifact(FALLBACK_ARTIFACT_PATH)
+        fallback_bundle = {
+            "model": fb_artifact["model"],
+            "model_name": str(fb_artifact["model_name"]),
+            "feature_cols": list(fb_artifact["feature_cols"]),
+            "classes": list(fb_artifact["classes"]),
+        }
+    except Exception as exc:
+        st.warning(f"Fallback model could not be loaded: {exc}")
+
 st.markdown("---")
 
 with st.container():
@@ -554,7 +819,7 @@ with st.container():
     with col2:
         st.metric("Feature Count", len(feature_cols))
     with col3:
-        st.metric("Disease Classes", len(classes))
+        st.metric("Fallback", "ON" if fallback_bundle is not None else "OFF")
 
 st.markdown("---")
 
@@ -571,82 +836,76 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 st.markdown('<div class="section-panel">', unsafe_allow_html=True)
-st.markdown("<div class='section-title'><i class='fa-solid fa-camera fa-icon'></i>Choose Input Method</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'><i class='fa-solid fa-video fa-icon'></i>Choose Input Method</div>", unsafe_allow_html=True)
 
 input_mode = st.radio(
     "Select how you want to provide the input:",
-    ["Upload Image", "Webcam Snapshot", "Video File"],
+    ["Webcam Snapshot", "Video File"],
     horizontal=True,
-    help="Image, webcam snapshot, or video file"
+    help="Webcam snapshot or video file"
 )
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-if "Upload Image" in input_mode:
-    uploaded_image = st.file_uploader(
-        "Upload an image",
-        type=["jpg", "jpeg", "png", "bmp", "webp", "jfif", "tif", "tiff"],
-        help="Supported: JPG, JPEG, PNG, BMP, WEBP, JFIF, TIF, TIFF",
-    )
-    if uploaded_image is not None:
-        try:
-            image_np = _read_uploaded_image(uploaded_image)
-        except Exception as exc:
-            st.error(f"Could not decode uploaded image: {exc}")
-            st.stop()
-        st.image(image_np, caption="Uploaded image", use_container_width=True)
-        if st.button("Predict", key="predict_image"):
-            with st.spinner("Extracting 338-compatible features from image and predicting..."):
-                features = _make_338_proxy_features(image_np)
-                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-                    model=model,
-                    classes=classes,
-                    feature_cols=feature_cols,
-                    features=features,
-                    top_k=top_k,
-                )
-            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
-            
-            with st.container():
-                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
-                for idx, (name, score) in enumerate(ranked, 1):
-                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            col1.metric("Missing Features", missing_count)
-            col2.metric("Unknown Features", unknown_count)
-
 if "Webcam Snapshot" in input_mode:
-    camera_file = st.camera_input("Take a picture")
-    if camera_file is not None:
-        try:
-            image_np = _read_uploaded_image(camera_file)
-        except Exception as exc:
-            st.error(f"Could not decode webcam snapshot: {exc}")
-            st.stop()
-        st.image(image_np, caption="Captured image", use_container_width=True)
-        if st.button("Predict", key="predict_camera"):
-            with st.spinner("Extracting 338-compatible features from snapshot and predicting..."):
-                features = _make_338_proxy_features(image_np)
-                label, confidence, ranked, missing_count, unknown_count = predict_with_artifact(
-                    model=model,
-                    classes=classes,
-                    feature_cols=feature_cols,
-                    features=features,
-                    top_k=top_k,
-                )
-            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+    st.markdown('<div class="section-panel">', unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>📹 Webcam Recording</div>", unsafe_allow_html=True)
+    st.info("**Instructions:** Click 'Start Recording', perform your sign for 3 seconds, then wait for processing.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🔴 Start Recording (3 sec)", key="start_webcam", use_container_width=True):
+            video_path = _record_webcam_video(duration_sec=3, fps=30)
             
-            with st.container():
-                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
-                for idx, (name, score) in enumerate(ranked, 1):
-                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            col1.metric("Missing Features", missing_count)
-            col2.metric("Unknown Features", unknown_count)
+            if video_path:
+                st.session_state.webcam_video_path = video_path
+                st.success("✓ Recording saved. Scroll down to predict.")
+    
+    with col2:
+        if st.button("⏹️ Predict from Recording", key="predict_webcam", use_container_width=True):
+            if hasattr(st.session_state, 'webcam_video_path') and st.session_state.webcam_video_path:
+                with st.spinner("Extracting 338-dimensional features from webcam recording..."):
+                    try:
+                        prediction = _predict_on_real_video_file(
+                            video_path=st.session_state.webcam_video_path,
+                            primary_bundle=primary_bundle,
+                            fallback_bundle=fallback_bundle,
+                            top_k=top_k,
+                        )
+                        label = prediction["label"]
+                        confidence = prediction["confidence"]
+                        ranked = prediction["ranked"]
+                        missing_count = prediction["missing_count"]
+                        unknown_count = prediction["unknown_count"]
+                        
+                        if label is not None:
+                            st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+                            st.info(f"📊 **Features:** training pipeline (cv2+MediaPipe)")
+                            if prediction["fallback_used"]:
+                                st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
+                            
+                            with st.container():
+                                st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
+                                for idx, (name, score) in enumerate(ranked, 1):
+                                    st.markdown(f'<div class="prediction-item"><strong>#{idx}</strong> {name} <span style="float:right;color:#123b84;font-weight:bold">{score:.1%}</span></div>', unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            col1, col2 = st.columns(2)
+                            col1.metric("Missing Features", missing_count)
+                            col2.metric("Unknown Features", unknown_count)
+                        else:
+                            st.error("Prediction failed. Please try recording again.")
+                    finally:
+                        # Clean up temp file
+                        try:
+                            Path(st.session_state.webcam_video_path).unlink(missing_ok=True)
+                        except Exception:
+                            pass
+            else:
+                st.warning("⚠️ No recording found. Click 'Start Recording' first.")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if "Video File" in input_mode:
     uploaded_video = st.file_uploader(
@@ -669,17 +928,49 @@ if "Video File" in input_mode:
                     st.image(frame, caption=f"Frame {idx + 1}", use_container_width=True)
             
             if st.button("Predict on Video", key="predict_video"):
-                with st.spinner("Extracting 338-compatible features from key frames and predicting..."):
-                    label, confidence, ranked, missing_count, unknown_count = _predict_on_frames(
-                        frames=frames,
-                        model=model,
-                        classes=classes,
-                        feature_cols=feature_cols,
-                        top_k=top_k,
-                    )
+                with st.spinner("Extracting 338-dimensional features from video and predicting..."):
+                    # Save uploaded video to temporary file for feature extraction
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+                        tmp.write(video_bytes)
+                        temp_video_path = tmp.name
+                    
+                    try:
+                        # Try real feature extraction first
+                        if REAL_FEATURE_EXTRACTION_AVAILABLE:
+                            prediction = _predict_on_real_video_file(
+                                video_path=temp_video_path,
+                                primary_bundle=primary_bundle,
+                                fallback_bundle=fallback_bundle,
+                                top_k=top_k,
+                            )
+                            feature_source = "training pipeline (cv2+MediaPipe)"
+                        else:
+                            # Fallback to frame-based proxy
+                            st.warning("⚠️ Using frame proxy features. Real video feature extraction unavailable.")
+                            prediction = _predict_on_frames(
+                                frames=frames,
+                                primary_bundle=primary_bundle,
+                                fallback_bundle=fallback_bundle,
+                                top_k=top_k,
+                            )
+                            feature_source = "proxy (image stats)"
+                    finally:
+                        try:
+                            Path(temp_video_path).unlink(missing_ok=True)
+                        except Exception:
+                            pass
+                    
+                    label = prediction["label"]
+                    confidence = prediction["confidence"]
+                    ranked = prediction["ranked"]
+                    missing_count = prediction["missing_count"]
+                    unknown_count = prediction["unknown_count"]
                 
                 if label is not None:
                     st.markdown('<div class="prediction-result"><div class="prediction-label"><i class="fa-solid fa-circle-check" style="margin-right:0.5rem"></i>Prediction: {}</div><div class="confidence-score">Confidence: {:.1%}</div></div>'.format(label, confidence), unsafe_allow_html=True)
+                    st.info(f"📊 **Features:** {feature_source}")
+                    if prediction["fallback_used"]:
+                        st.info(f"Fallback used: {prediction['fallback_reason']} (served by {prediction['model_name']}).")
                     
                     with st.container():
                         st.markdown('<div class="top-predictions"><h4><i class="fa-solid fa-ranking-star fa-icon"></i>Top Predictions</h4>', unsafe_allow_html=True)
@@ -700,9 +991,10 @@ with st.container():
     st.markdown("""
         <div class="section-panel" style="text-align: center; margin-top: 2em; padding: 1.5em; background: #ffffff;">
         <h4><i class="fa-solid fa-circle-info" style="margin-right:0.45rem;color:#123b84"></i>System Information</h4>
-        <p><strong>Model:</strong> Support Vector Machine with RBF Kernel</p>
+        <p><strong>Primary Model:</strong> {model_name.replace('_', ' ').title()}</p>
+        <p><strong>Fallback Model:</strong> {(fallback_bundle['model_name'].replace('_', ' ').title() if fallback_bundle else 'Disabled')}</p>
+        <p><strong>Fallback Threshold:</strong> {FALLBACK_CONFIDENCE_THRESHOLD:.0%}</p>
         <p><strong>Training Data:</strong> 338 engineered video features (temporal, HOG, MediaPipe)</p>
-        <p><strong>Test Accuracy:</strong> 87.5%</p>
         <p><strong>Note:</strong> Deployed cloud mode uses image, webcam, and video proxy features for compatibility.</p>
         <p style="font-size: 0.9em; color: #888;">
             <em>Device Signs: ASCARIASIS, CHOLERA, COVID, EBOLA, MALARIA, HIV, HEPATITIS, & 18 more...</em>

@@ -5,3 +5,5 @@ joblib>=1.4,<2
 Pillow>=11.2,<12
 imageio>=2.37,<3
 imageio-ffmpeg>=0.6,<1
+opencv-python>=4.10,<5
+mediapipe>=0.10,<1
