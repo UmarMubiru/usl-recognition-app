@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r models_dataset1/deployment/requirements.txt
+          python -m pip install -r parent_model/requirements.txt
           python -m pip install pandas
 
       - name: Export best model artifact
@@ -65,13 +65,13 @@ jobs:
 
       - name: Import API module
         run: |
-          python -c "import models_dataset1.deployment.api as api; print(api.MODEL_NAME, len(api.FEATURE_COLS))"
+          python -c "import parent_model.api as api; print(api.MODEL_NAME, len(api.FEATURE_COLS))"
 
       - name: Smoke test API endpoints
         run: |
           python - << 'PY'
           from fastapi.testclient import TestClient
-          from models_dataset1.deployment.api import app
+          from parent_model.api import app
 
           client = TestClient(app)
 
@@ -90,7 +90,7 @@ jobs:
 
       - name: Build deployment container
         run: |
-          docker build -f models_dataset1/deployment/Dockerfile -t usl-disease-api:ci .
+          docker build -f parent_model/Dockerfile -t usl-disease-api:ci .
 
       - name: Smoke test containerized API
         run: |

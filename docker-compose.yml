@@ -4,13 +4,13 @@ services:
   usl-disease-api:
     build:
       context: .
-      dockerfile: models_dataset1/deployment/Dockerfile
+      dockerfile: parent_model/Dockerfile
     container_name: usl-disease-api
     restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
-      - models_dataset1/deployment/.env.example
+      - parent_model/.env.example
     environment:
       MODEL_ARTIFACT_PATH: /app/models_dataset1/csv_models/artifacts/best_model.joblib
     volumes:
